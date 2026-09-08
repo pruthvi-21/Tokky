@@ -2,6 +2,7 @@ package com.boxy.authenticator.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boxy.authenticator.core.Logger
 import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.domain.usecases.FetchTokensUseCase
 import com.boxy.authenticator.ui.state.HomeUiState
@@ -13,6 +14,7 @@ class HomeViewModel(
     private val settingsDataStore: SettingsDataStore,
     private val fetchTokensUseCase: FetchTokensUseCase,
 ) : ViewModel() {
+    private val logger = Logger("HomeViewModel")
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
@@ -45,6 +47,7 @@ class HomeViewModel(
                     )
                 },
                 onFailure = { exception ->
+                    logger.e(exception.message, exception)
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         error = exception.message ?: "Unknown error",

@@ -8,6 +8,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 actual class DatabaseDriverFactory(private val context: Context) {
     actual fun create(): SqlDriver {
+        System.loadLibrary("sqlcipher")
         val key = DatabaseKeyManager.databaseKey
         val factory = SupportOpenHelperFactory(key)
 
