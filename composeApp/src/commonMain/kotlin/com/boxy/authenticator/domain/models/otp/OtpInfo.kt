@@ -9,9 +9,9 @@ import kotlinx.serialization.SerializationException
 @Serializable
 sealed class OtpInfo {
     @Serializable(with = ByteArraySerializer::class)
-    abstract var secretKey: ByteArray
-    abstract var algorithm: String
-    abstract var digits: Int
+    abstract val secretKey: ByteArray
+    abstract val algorithm: String
+    abstract val digits: Int
 
     @Throws(OtpInfoException::class)
     abstract fun getOtp(): String

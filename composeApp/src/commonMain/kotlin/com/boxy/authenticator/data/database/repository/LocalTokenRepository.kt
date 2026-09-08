@@ -1,48 +1,57 @@
 package com.boxy.authenticator.data.database.repository
 
-import com.boxy.authenticator.domain.database.dao.TokenDao
-import com.boxy.authenticator.domain.database.repository.TokenRepository
+import com.boxy.authenticator.data.database.dao.TokenDao
+import com.boxy.authenticator.domain.repository.TokenRepository
 import com.boxy.authenticator.domain.models.TokenEntry
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
-class LocalTokenRepository(private val tokenDao: TokenDao) : TokenRepository {
-    override fun getAllTokens(): List<TokenEntry> {
-        return tokenDao.getAllTokens()
+class LocalTokenRepository(
+    private val tokenDao: TokenDao,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+) : TokenRepository {
+    override suspend fun getAllTokens(): List<TokenEntry> = withContext(dispatcher) {
+        tokenDao.getAllTokens()
     }
 
-    override fun getTokensCount(): Long {
-        return tokenDao.getTokensCount()
+    override suspend fun getTokensCount(): Long = withContext(dispatcher) {
+        tokenDao.getTokensCount()
     }
 
-    override fun findTokenWithId(tokenId: String): TokenEntry {
-        return tokenDao.findTokenWithId(tokenId)
+    override suspend fun findTokenWithId(tokenId: String): TokenEntry = withContext(dispatcher) {
+        tokenDao.findTokenWithId(tokenId)
     }
 
-    override fun findTokenWithName(issuer: String, label: String): TokenEntry? {
-        return tokenDao.findTokenWithName(issuer, label)
-    }
+    override suspend fun findTokenWithName(issuer: String, label: String): TokenEntry? =
+        withContext(dispatcher) { tokenDao.findTokenWithName(issuer, label) }
 
-    override fun insertToken(token: TokenEntry) {
+    override suspend fun insertToken(token: TokenEntry) = withContext(dispatcher) {
         tokenDao.insertToken(token)
     }
 
-    override fun insertTokens(tokens: List<TokenEntry>) {
+    override suspend fun insertTokens(tokens: List<TokenEntry>) = withContext(dispatcher) {
         tokenDao.insertTokens(tokens)
     }
 
-    override fun deleteToken(tokenId: String) {
+    override suspend fun deleteToken(tokenId: String) = withContext(dispatcher) {
         tokenDao.deleteToken(tokenId)
     }
 
-    override fun updateToken(token: TokenEntry) {
+    override suspend fun updateToken(token: TokenEntry) = withContext(dispatcher) {
         tokenDao.updateToken(token.copy(updatedOn = Clock.System.now().toEpochMilliseconds()))
     }
 
-    override fun replaceTokenWith(id: String, token: TokenEntry) {
+    override suspend fun replaceTokenWith(id: String, token: TokenEntry) = withContext(dispatcher) {
         tokenDao.replaceTokenWith(id, token)
     }
 
-    override fun updateHotpCounter(tokenId: String, counter: Long) {
-        tokenDao.updateHotpCounter(tokenId, counter)
+    override suspend fun updateHotpCounter(tokenId: String, counter: Long) = withContext(dispatcher) {
+        tokenDao.updateHotpCounter(
+            tokenId = tokenId,
+            counter = counter,
+            updatedOn = Clock.System.now().toEpochMilliseconds(),
+        )
     }
 }

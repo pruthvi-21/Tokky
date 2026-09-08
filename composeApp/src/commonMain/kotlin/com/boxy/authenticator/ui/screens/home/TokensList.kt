@@ -63,11 +63,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.refresh
-import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.models.otp.HotpInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo
-import com.boxy.authenticator.domain.usecases.UpdateHotpCounterUseCase
 import com.boxy.authenticator.ui.components.design.BoxyProgressBar
 import com.boxy.authenticator.ui.components.OtpTextView
 import com.boxy.authenticator.ui.components.TokenThumbnail
@@ -77,7 +75,6 @@ import com.boxy.authenticator.utils.name
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.collections.set
@@ -87,15 +84,16 @@ private const val SLIDE_DURATION = 150
 @Composable
 fun TokensList(
     tokensList: List<TokenEntry>,
+    viewedTokenIds: Set<String>,
+    onTokenViewed: (String) -> Unit,
+    onUpdateHotpCounter: (String, Long, (Boolean) -> Unit) -> Unit,
     onEdit: (token: TokenEntry) -> Unit,
     singleExpansion: Boolean = true,
 ) {
     val expandedStates = remember { mutableStateMapOf<TokenEntry, Boolean>() }
-    val settings: SettingsDataStore = koinInject()
-
     val groupedAccounts = tokensList
         .sortedBy { it.name.lowercase() }
-        .groupBy { it.name.first().uppercaseChar() }
+        .groupBy { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
 
     val cardShape = MaterialTheme.shapes.medium
 
@@ -128,9 +126,10 @@ fun TokensList(
                     token = token,
                     onEdit = onEdit,
                     isExpanded = expandedStates[token] ?: false,
-                    isNewItem = !settings.getViewedItems().contains(token.id),
+                    isNewItem = token.id !in viewedTokenIds,
+                    onUpdateHotpCounter = onUpdateHotpCounter,
                     onToggleExpand = { isExpanded ->
-                        settings.markItemAsViewed(token.id)
+                        onTokenViewed(token.id)
                         if (singleExpansion) {
                             expandedStates.keys.forEach { expandedStates[it] = false }
                         }
@@ -173,6 +172,7 @@ fun TokenCard(
     onEdit: (TokenEntry) -> Unit,
     isExpanded: Boolean,
     isNewItem: Boolean,
+    onUpdateHotpCounter: (String, Long, (Boolean) -> Unit) -> Unit,
     onToggleExpand: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -220,7 +220,7 @@ fun TokenCard(
             )
         ) {
             when (token.otpInfo) {
-                is HotpInfo -> HOTPFieldView(token.id, token.otpInfo)
+                is HotpInfo -> HOTPFieldView(token.id, token.otpInfo, onUpdateHotpCounter)
                 is TotpInfo -> TOTPFieldView(token.otpInfo)
             }
         }
@@ -228,12 +228,14 @@ fun TokenCard(
 }
 
 @Composable
-private fun HOTPFieldView(tokenId: String, otpInfo: HotpInfo) {
+private fun HOTPFieldView(
+    tokenId: String,
+    otpInfo: HotpInfo,
+    onUpdateCounter: (String, Long, (Boolean) -> Unit) -> Unit,
+) {
     var counter by remember { mutableLongStateOf(otpInfo.counter) }
     var otp by remember { mutableStateOf(otpInfo.getOtp()) }
     val scope = rememberCoroutineScope()
-
-    val updateHotpCounterUseCase: UpdateHotpCounterUseCase = koinInject()
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -261,18 +263,25 @@ private fun HOTPFieldView(tokenId: String, otpInfo: HotpInfo) {
 
                 scope.launch {
                     isUpdating = true
-                    otpInfo.incrementCounter()
-                    updateHotpCounterUseCase(tokenId, otpInfo.counter)
-                        .onSuccess {
-                            counter = otpInfo.counter
-                            otp = otpInfo.getOtp()
-                            delay(1000)
-                            isUpdating = false
+                    val nextCounter = counter + 1
+                    onUpdateCounter(tokenId, nextCounter) { success ->
+                        scope.launch {
+                            if (success) {
+                                counter = nextCounter
+                                otp = HotpInfo(
+                                    secretKey = otpInfo.secretKey,
+                                    algorithm = otpInfo.algorithm,
+                                    digits = otpInfo.digits,
+                                    counter = nextCounter,
+                                ).getOtp()
+                                delay(1000)
+                                isUpdating = false
+                            } else {
+                                delay(500)
+                                isUpdating = false
+                            }
                         }
-                        .onFailure {
-                            delay(500)
-                            isUpdating = false
-                        }
+                    }
                 }
             },
             enabled = !isUpdating,

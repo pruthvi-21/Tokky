@@ -3,7 +3,6 @@ package com.boxy.authenticator.data.database.dao
 import com.boxy.authenticator.db.TokenDatabase
 import com.boxy.authenticator.db.TokenEntityQueries
 import com.boxy.authenticator.db.Token_entry
-import com.boxy.authenticator.domain.database.dao.TokenDao
 import com.boxy.authenticator.domain.models.Thumbnail
 import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.models.enums.AccountEntryMethod
@@ -71,17 +70,21 @@ class LocalTokenDao(database: TokenDatabase) : TokenDao {
         }
     }
 
-    override fun updateHotpCounter(tokenId: String, counter: Long) {
+    override fun updateHotpCounter(tokenId: String, counter: Long, updatedOn: Long) {
         queries.transaction {
             val currentOtpInfoJson = queries.findTokenWithId(tokenId).executeAsOne().otpInfo
 
             val otpInfoMap = OtpInfo.deserialize(currentOtpInfoJson)
             if (otpInfoMap !is HotpInfo) throw IllegalStateException("Not HOTP")
 
-            otpInfoMap.counter = counter
-            val updatedOtpInfoJson = otpInfoMap.serialize()
+            val updatedOtpInfoJson = HotpInfo(
+                secretKey = otpInfoMap.secretKey,
+                algorithm = otpInfoMap.algorithm,
+                digits = otpInfoMap.digits,
+                counter = counter,
+            ).serialize()
 
-            queries.updateHotpInfo(updatedOtpInfoJson, tokenId)
+            queries.updateHotpInfo(updatedOtpInfoJson, updatedOn, tokenId)
         }
     }
 }

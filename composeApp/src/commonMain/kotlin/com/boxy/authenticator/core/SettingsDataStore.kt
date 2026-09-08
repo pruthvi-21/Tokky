@@ -3,14 +3,14 @@ package com.boxy.authenticator.core
 import com.boxy.authenticator.data.preferences.PreferenceStore
 import com.boxy.authenticator.domain.models.enums.AppTheme
 import com.boxy.authenticator.domain.models.enums.TokenTapResponse
-import com.boxy.authenticator.ui.state.SettingsState
+import com.boxy.authenticator.domain.models.AppSettings
 
 class SettingsDataStore(
     private val store: PreferenceStore,
 ) {
 
-    fun getSettings(): SettingsState {
-        return SettingsState(
+    fun getSettings(): AppSettings {
+        return AppSettings(
             // Appearance
             appTheme = getAppTheme(),
 

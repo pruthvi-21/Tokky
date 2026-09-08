@@ -42,7 +42,7 @@ class ExportTokensViewModel(
         )
 
         viewModelScope.launch {
-            withContext(Dispatchers.Default) { fetchTokensUseCase() }.fold(
+            fetchTokensUseCase().fold(
                 onSuccess = {
                 _uiState.value = _uiState.value.copy(
                     tokensState = DataLoadState.Data(it),
@@ -121,8 +121,8 @@ class ExportTokensViewModel(
         val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
         return Constants.EXPORT_FILE_NAME_PREFIX +
                 now.year +
-                now.monthNumber.toString().padStart(2, '0') +
-                now.dayOfMonth.toString().padStart(2, '0') +
+                (now.month.ordinal + 1).toString().padStart(2, '0') +
+                now.day.toString().padStart(2, '0') +
                 "_" +
                 now.hour.toString().padStart(2, '0') +
                 now.minute.toString().padStart(2, '0') +

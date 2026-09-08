@@ -9,8 +9,12 @@ CREATE TABLE token_entry (
     addedFrom TEXT NOT NULL
 );
 
+CREATE INDEX token_entry_name_idx
+ON token_entry(issuer COLLATE NOCASE, label COLLATE NOCASE);
+
 getAllTokens:
-SELECT * FROM token_entry;
+SELECT * FROM token_entry
+ORDER BY issuer COLLATE NOCASE, label COLLATE NOCASE, createdOn;
 
 getTokensCount:
 SELECT COUNT(*) FROM token_entry;
@@ -42,5 +46,6 @@ WHERE id = ?;
 
 updateHotpInfo:
 UPDATE token_entry
-SET otpInfo = ?
+SET otpInfo = ?,
+    updatedOn = ?
 WHERE id = ?;

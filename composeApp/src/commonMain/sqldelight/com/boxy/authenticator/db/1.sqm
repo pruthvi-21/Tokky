@@ -1,0 +1,2 @@
+CREATE INDEX token_entry_name_idx
+ON token_entry(issuer COLLATE NOCASE, label COLLATE NOCASE);

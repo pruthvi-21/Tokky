@@ -7,12 +7,11 @@ import com.boxy.authenticator.data.database.DatabaseDriverFactory
 import com.boxy.authenticator.data.database.dao.LocalTokenDao
 import com.boxy.authenticator.data.database.repository.LocalTokenRepository
 import com.boxy.authenticator.db.TokenDatabase
-import com.boxy.authenticator.domain.database.dao.TokenDao
-import com.boxy.authenticator.domain.database.repository.TokenRepository
+import com.boxy.authenticator.data.database.dao.TokenDao
+import com.boxy.authenticator.domain.repository.TokenRepository
 import com.boxy.authenticator.domain.usecases.DeleteTokenUseCase
 import com.boxy.authenticator.domain.usecases.FetchTokenByIdUseCase
 import com.boxy.authenticator.domain.usecases.FetchTokenByNameUseCase
-import com.boxy.authenticator.domain.usecases.FetchTokenCountUseCase
 import com.boxy.authenticator.domain.usecases.FetchTokensUseCase
 import com.boxy.authenticator.domain.usecases.InsertTokenUseCase
 import com.boxy.authenticator.domain.usecases.InsertTokensUseCase
@@ -33,7 +32,7 @@ expect val platformModule: Module
 
 val sharedModule = module {
     viewModel { AuthenticationViewModel(get()) }
-    viewModel { HomeViewModel(get(), get()) }
+    viewModel { HomeViewModel(get(), get(), get()) }
     viewModel { TokenSetupViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel { SettingsViewModel(get()) }
     viewModel { ExportTokensViewModel(get(), get()) }
@@ -43,7 +42,6 @@ val sharedModule = module {
     factory { DeleteTokenUseCase(get()) }
     factory { FetchTokenByIdUseCase(get()) }
     factory { FetchTokenByNameUseCase(get()) }
-    factory { FetchTokenCountUseCase(get()) }
     factory { FetchTokensUseCase(get()) }
     factory { InsertTokenUseCase(get()) }
     factory { InsertTokensUseCase(get()) }

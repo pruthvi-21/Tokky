@@ -39,10 +39,10 @@ class ImportTokensViewModel(
 ) : ViewModel() {
     private val logger = Logger("ImportTokensViewModel")
 
-    data class ImportItem internal constructor(
+    data class ImportItem(
         val token: TokenEntry,
-        var isChecked: Boolean,
-        var isDuplicate: Boolean,
+        val isChecked: Boolean,
+        val isDuplicate: Boolean,
     )
 
     sealed class UiState {
@@ -152,7 +152,7 @@ class ImportTokensViewModel(
             .map { it.token }
 
         _uiState.value = current.copy(isImporting = true, errorMessage = null)
-        val result = withContext(Dispatchers.Default) { insertTokensUseCase(tokensToInsert) }
+        val result = insertTokensUseCase(tokensToInsert)
         result.onFailure { logger.e(it.message, it) }
         _uiState.value = current.copy(
             isImporting = false,
@@ -177,7 +177,7 @@ class ImportTokensViewModel(
         }
     }
 
-    private fun buildImportListFromTokens(tokens: List<TokenEntry>): Result<List<ImportItem>> {
+    private suspend fun buildImportListFromTokens(tokens: List<TokenEntry>): Result<List<ImportItem>> {
         return fetchTokensUseCase()
             .map { data ->
                     val existingAccountNames = data.map { it.name }.toSet()
@@ -213,9 +213,7 @@ class ImportTokensViewModel(
     }
 
     private suspend fun checkIfDuplicate(token: TokenEntry): Boolean {
-        return withContext(Dispatchers.Default) {
-            fetchTokenByNameUseCase(token.issuer, token.label)
-        }
+        return fetchTokenByNameUseCase(token.issuer, token.label)
             .fold(
                 onSuccess = { it != null },
                 onFailure = {

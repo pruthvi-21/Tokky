@@ -70,6 +70,8 @@ fun HomeScreen(
     uiState: HomeUiState,
     loadTokens: () -> Unit,
     onFabExpanded: (Boolean) -> Unit,
+    onTokenViewed: (String) -> Unit,
+    onUpdateHotpCounter: (String, Long, (Boolean) -> Unit) -> Unit,
     onDismissSnackbar: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToQrScan: () -> Unit,
@@ -157,7 +159,10 @@ fun HomeScreen(
                     is DataLoadState.Data -> if (state.value.isNotEmpty()) {
                         TokensList(
                             tokensList = state.value,
-                            onEdit = { onNavigateToEditToken(it.id) }
+                            viewedTokenIds = uiState.viewedTokenIds,
+                            onTokenViewed = onTokenViewed,
+                            onUpdateHotpCounter = onUpdateHotpCounter,
+                            onEdit = { onNavigateToEditToken(it.id) },
                         )
                     } else {
                             Box(

@@ -16,10 +16,10 @@ class MainActivity : AppCompatActivity() {
             window.isNavigationBarContrastEnforced = false
         }
 
+        FileKit.init(this)
+
         setContent {
             App()
         }
-
-        FileKit.init(this)
     }
 }

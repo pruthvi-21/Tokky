@@ -6,7 +6,7 @@ import com.boxy.authenticator.core.Logger
 import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.core.crypto.HashKeyGenerator
 import com.boxy.authenticator.domain.models.form.SettingChangeEvent
-import com.boxy.authenticator.ui.state.SettingsState
+import com.boxy.authenticator.domain.models.AppSettings
 import com.boxy.authenticator.ui.state.SettingsUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -105,7 +105,7 @@ class SettingsViewModel(
         }
     }
 
-    private fun updateSettings(settings: SettingsState) {
+    private fun updateSettings(settings: AppSettings) {
         _uiState.value = _uiState.value.copy(
             settings = settings
         )

@@ -32,8 +32,6 @@ import com.boxy.authenticator.utils.cleanSecretKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
 
 class TokenSetupViewModel(
@@ -113,7 +111,7 @@ class TokenSetupViewModel(
         if (_uiState.value.editLoadState == DataLoadState.Loading) return
         _uiState.value = _uiState.value.copy(editLoadState = DataLoadState.Loading)
         viewModelScope.launch {
-            val result = withContext(Dispatchers.Default) { fetchTokenByIdUseCase(tokenId) }
+            val result = fetchTokenByIdUseCase(tokenId)
             result.fold(
                 onSuccess = { setStateFromToken(it, TokenSetupMode.UPDATE) },
                 onFailure = {
@@ -317,7 +315,7 @@ class TokenSetupViewModel(
         event: TokenFormEvent.Submit,
     ) {
         _uiState.value = _uiState.value.copy(isSaving = true, operationError = null)
-        withContext(Dispatchers.Default) { insertTokenUseCase(token) }
+        insertTokenUseCase(token)
             .onSuccess { event.onComplete() }
             .onFailure { exception ->
                 logger.e("insertToken: Failed to insert token", exception)
@@ -338,7 +336,7 @@ class TokenSetupViewModel(
         event: TokenFormEvent.Submit,
     ) {
         _uiState.value = _uiState.value.copy(isSaving = true, operationError = null)
-        withContext(Dispatchers.Default) { updateTokenUseCase(token) }
+        updateTokenUseCase(token)
             .onSuccess { event.onComplete() }
             .onFailure {
                 logger.e("updateToken: Failed to update token", it)
@@ -391,7 +389,7 @@ class TokenSetupViewModel(
     suspend fun deleteToken(): Boolean {
         val token = currentToken ?: return false
         _uiState.value = _uiState.value.copy(isSaving = true, operationError = null)
-        val result = withContext(Dispatchers.Default) { deleteTokenUseCase(token.id) }
+        val result = deleteTokenUseCase(token.id)
         result.onFailure { logger.e("Failed to delete token", it) }
         _uiState.value = _uiState.value.copy(
             isSaving = false,
@@ -404,9 +402,7 @@ class TokenSetupViewModel(
 
     suspend fun replaceExistingToken(existingToken: TokenEntry, token: TokenEntry): Boolean {
         _uiState.value = _uiState.value.copy(isSaving = true, operationError = null)
-        val result = withContext(Dispatchers.Default) {
-            replaceExistingTokenUseCase(existingToken, token)
-        }
+        val result = replaceExistingTokenUseCase(existingToken, token)
         result.onFailure { logger.e("Failed to replace token", it) }
         _uiState.value = _uiState.value.copy(
             isSaving = false,

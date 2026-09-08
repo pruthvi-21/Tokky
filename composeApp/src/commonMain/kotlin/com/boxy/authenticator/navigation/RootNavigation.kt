@@ -89,6 +89,8 @@ fun RootNavigation(
                 uiState = uiState,
                 loadTokens = { homeViewModel.loadTokens() },
                 onFabExpanded = { homeViewModel.setIsFabExpanded(it) },
+                onTokenViewed = homeViewModel::markTokenViewed,
+                onUpdateHotpCounter = homeViewModel::updateHotpCounter,
                 onDismissSnackbar = { homeViewModel.dismissSnackbar() },
                 onNavigateToSettings = { navController.navigate(Screen.Settings) },
                 onNavigateToQrScan = { navController.navigate(Screen.QrScanner) },

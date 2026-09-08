@@ -13,13 +13,13 @@ import kotlin.time.Clock
 @OptIn(ExperimentalSerializationApi::class)
 open class TotpInfo(
     @Serializable(with = ByteArraySerializer::class)
-    override var secretKey: ByteArray,
+    override val secretKey: ByteArray,
     @EncodeDefault
-    override var algorithm: String = DEFAULT_ALGORITHM,
+    override val algorithm: String = DEFAULT_ALGORITHM,
     @EncodeDefault
-    override var digits: Int = DEFAULT_DIGITS,
+    override val digits: Int = DEFAULT_DIGITS,
     @EncodeDefault
-    var period: Long = DEFAULT_PERIOD,
+    val period: Long = DEFAULT_PERIOD,
 ) : OtpInfo() {
 
     override fun getOtp(): String {

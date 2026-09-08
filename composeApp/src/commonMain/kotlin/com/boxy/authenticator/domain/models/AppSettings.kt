@@ -1,9 +1,9 @@
-package com.boxy.authenticator.ui.state
+package com.boxy.authenticator.domain.models
 
 import com.boxy.authenticator.domain.models.enums.AppTheme
 import com.boxy.authenticator.domain.models.enums.TokenTapResponse
 
-data class SettingsState(
+data class AppSettings(
     val appTheme: AppTheme = AppTheme.SYSTEM,
     val tokenTapResponse: TokenTapResponse = TokenTapResponse.NEVER,
     val isLockscreenPinPadEnabled: Boolean = false,
@@ -12,5 +12,5 @@ data class SettingsState(
     val isBiometricUnlockEnabled: Boolean = false,
     val isBlockScreenshotsEnabled: Boolean = false,
     val isLockSensitiveFieldsEnabled: Boolean = true,
-    val lastBackupTimestamp: Long = 0L
+    val lastBackupTimestamp: Long = -1L,
 )

@@ -75,13 +75,13 @@ import com.jw.preferences.PreferenceCategory
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImportTokensScreen(navController: NavController) {
 
-    val importTokensViewModel: ImportTokensViewModel = koinInject()
+    val importTokensViewModel: ImportTokensViewModel = koinViewModel()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val importState by importTokensViewModel.uiState.collectAsStateWithLifecycle()

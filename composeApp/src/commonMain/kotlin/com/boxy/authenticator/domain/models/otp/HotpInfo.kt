@@ -12,18 +12,14 @@ import kotlinx.serialization.Serializable
 @OptIn(ExperimentalSerializationApi::class)
 class HotpInfo(
     @Serializable(with = ByteArraySerializer::class)
-    override var secretKey: ByteArray,
+    override val secretKey: ByteArray,
     @EncodeDefault
-    override var algorithm: String = DEFAULT_ALGORITHM,
+    override val algorithm: String = DEFAULT_ALGORITHM,
     @EncodeDefault
-    override var digits: Int = DEFAULT_DIGITS,
+    override val digits: Int = DEFAULT_DIGITS,
     @EncodeDefault
-    var counter: Long = DEFAULT_COUNTER,
+    val counter: Long = DEFAULT_COUNTER,
 ) : OtpInfo() {
-
-    fun incrementCounter() {
-        counter++
-    }
 
     override fun getOtp(): String {
         val otp = OtpGenerator.generateHotp(secretKey, algorithm, counter)

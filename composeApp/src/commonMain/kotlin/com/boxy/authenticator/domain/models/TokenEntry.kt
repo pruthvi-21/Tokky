@@ -16,12 +16,12 @@ import kotlin.uuid.Uuid
 @Serializable
 data class TokenEntry(
     val id: String,
-    var issuer: String,
-    var label: String,
-    var thumbnail: Thumbnail,
+    val issuer: String,
+    val label: String,
+    val thumbnail: Thumbnail,
     val otpInfo: OtpInfo,
     val createdOn: Long,
-    var updatedOn: Long,
+    val updatedOn: Long,
     val addedFrom: AccountEntryMethod,
 ) {
     companion object {

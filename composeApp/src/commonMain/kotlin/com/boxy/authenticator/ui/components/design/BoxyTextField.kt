@@ -111,7 +111,7 @@ fun BoxyTextField(
             },
             singleLine = true,
             supportingText = if (hasError) {
-                { Text(errorMessage!!) }
+                { Text(errorMessage.orEmpty()) }
             } else null,
             enabled = enabled,
             modifier = Modifier
