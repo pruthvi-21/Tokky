@@ -30,7 +30,7 @@ The shared app follows a layered structure:
 
 ## Build and test commands
 
-Do not run linting, builds, or tests unless the user explicitly asks for them. Static inspection and `git diff --check` are acceptable when reviewing changes, but do not invoke Gradle verification or compilation tasks by default.
+Tests may be run by default when they are relevant to a change. Do not run linting, assemble, compilation, packaging, or other build tasks unless the user explicitly asks for them. Static inspection and `git diff --check` are also acceptable when reviewing changes.
 
 Run commands from the repository root with the checked-in Gradle wrapper:
 
@@ -48,7 +48,7 @@ Run commands from the repository root with the checked-in Gradle wrapper:
 ./gradlew :composeApp:compileKotlinIosSimulatorArm64
 ```
 
-For focused iteration, run the narrowest relevant test task first, then `:composeApp:allTests` before finishing. iOS application builds require Xcode; open `iosApp/iosApp.xcodeproj` or build its scheme with Xcode tooling.
+For focused iteration, run the narrowest relevant test task first, then `:composeApp:allTests` before finishing when appropriate. The assemble and iOS compilation commands above are reference commands only and must not be run unless the user explicitly requests a build. iOS application builds require Xcode; open `iosApp/iosApp.xcodeproj` or build its scheme with Xcode tooling.
 
 The project expects JDK 17 to run Gradle and compiles Android source to JVM 11 bytecode. Android configuration is in `composeApp/build.gradle.kts`; do not duplicate dependency versions outside the version catalog.
 
@@ -89,4 +89,4 @@ The SQLDelight database is named `TokenDatabase` and its package is `com.boxy.au
 - Cover success, failure, and duplicate/conflict paths for token mutations and import flows.
 - For UI changes, verify both Android and iOS behavior, including back navigation, safe areas/insets, permissions, biometrics, and accessibility-relevant labels.
 
-Before finishing, review the diff for accidental secrets or generated files. If the user requested linting, builds, or tests, report which commands were run, including any command that could not run because its platform toolchain was unavailable.
+Before finishing, review the diff for accidental secrets or generated files and report any tests that were run. If the user explicitly requested linting or a build, report those commands too, including any command that could not run because its platform toolchain was unavailable.

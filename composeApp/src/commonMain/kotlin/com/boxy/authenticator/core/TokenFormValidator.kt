@@ -36,7 +36,7 @@ class TokenFormValidator {
     fun validatePeriod(period: String): Result {
         return when {
             period.isEmpty() -> Result.Failure(Res.string.error_period_empty)
-            period.toIntOrNull() == null || period.toInt() == 0 -> Result.Failure(Res.string.error_period_invalid)
+            period.toLongOrNull() == null || period.toLong() <= 0 -> Result.Failure(Res.string.error_period_invalid)
             else -> Result.Success
         }
     }
@@ -44,8 +44,8 @@ class TokenFormValidator {
     fun validateCounter(counter: String): Result {
         return when {
             counter.isEmpty() ||
-                    counter.toIntOrNull() == null ||
-                    counter.toInt() < COUNTER_MIN_VALUE -> Result.Failure(Res.string.error_counter_invalid)
+                    counter.toLongOrNull() == null ||
+                    counter.toLong() < COUNTER_MIN_VALUE -> Result.Failure(Res.string.error_counter_invalid)
 
             else -> Result.Success
         }
