@@ -2,11 +2,11 @@ package com.boxy.authenticator.domain.models.otp
 
 import com.boxy.authenticator.core.otp.OtpGenerator
 import com.boxy.authenticator.core.serialization.ByteArraySerializer
-import kotlinx.datetime.Clock
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.Clock
 
 @Serializable
 @SerialName("totp")

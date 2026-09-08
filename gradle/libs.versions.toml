@@ -1,33 +1,46 @@
 [versions]
-agp = "8.6.1"
-android-compileSdk = "36"
+agp = "8.13.2"
+android-compileSdk = "37"
 android-minSdk = "26"
-android-targetSdk = "36"
-androidDatabaseSqlcipher = "4.5.4"
-androidx-activityCompose = "1.10.1"
-androidx-lifecycle = "2.9.0"
-androidx-material3 = "1.12.0"
-coilCompose = "3.0.4"
-compose-multiplatform = "1.8.1"
+android-targetSdk = "37"
+androidxSqlite = "2.7.0"
+androidx-activityCompose = "1.13.0"
+androidx-lifecycle = "2.10.0"
+androidx-material3 = "1.14.0"
+coilCompose = "3.6.2"
+compose-multiplatform = "1.10.3"
+compose-androidx = "1.10.5"
 diglol-crypto = "0.2.0"
 filekit = "0.8.8"
-guava = "33.4.0-android"
-koin = "4.1.0-RC1"
-koin-compose = "4.1.0-RC1"
-kotlin = "2.1.21"
-kotlinxCoroutinesCore = "1.10.1"
-kotlinxDatetime = "0.6.1"
-kotlinxSerializationJson = "1.8.0-RC"
-ksp = "2.1.21-2.0.1"
-ktorClientCore = "2.3.12"
+guava = "33.7.1-android"
+koin = "4.2.2"
+koin-compose = "4.2.2"
+kotlin = "2.4.20"
+kotlinxCoroutinesCore = "1.11.0"
+kotlinxDatetime = "0.8.0"
+kotlinxSerializationJson = "1.11.0"
+ktorClientCore = "3.5.2"
 mokoBiometry = "0.4.0"
-navigationCompose = "2.9.0-beta01"
+navigationCompose = "2.9.2"
 preferenceKtx = "1.2.1"
 qrKit = "3.0.6"
-sqlDelight = "2.0.2"
+sqlcipherAndroid = "4.18.0"
+sqlDelight = "2.3.2"
 
 [libraries]
-android-database-sqlcipher = { module = "net.zetetic:android-database-sqlcipher", version.ref = "androidDatabaseSqlcipher" }
+androidx-compose-animation = { module = "androidx.compose.animation:animation", version.ref = "compose-androidx" }
+androidx-compose-animation-core = { module = "androidx.compose.animation:animation-core", version.ref = "compose-androidx" }
+androidx-compose-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "compose-androidx" }
+androidx-compose-foundation-layout = { module = "androidx.compose.foundation:foundation-layout", version.ref = "compose-androidx" }
+androidx-compose-runtime-saveable = { module = "androidx.compose.runtime:runtime-saveable", version.ref = "compose-androidx" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui", version.ref = "compose-androidx" }
+androidx-compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics", version.ref = "compose-androidx" }
+androidx-compose-ui-test = { module = "androidx.compose.ui:ui-test", version.ref = "compose-androidx" }
+androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4", version.ref = "compose-androidx" }
+androidx-compose-ui-text = { module = "androidx.compose.ui:ui-text", version.ref = "compose-androidx" }
+androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = "compose-androidx" }
+androidx-compose-ui-tooling-data = { module = "androidx.compose.ui:ui-tooling-data", version.ref = "compose-androidx" }
+androidx-sqlite = { module = "androidx.sqlite:sqlite", version.ref = "androidxSqlite" }
 androidx-material3 = { group = "com.google.android.material", name = "material", version.ref = "androidx-material3" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
 androidx-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "androidx-lifecycle" }
@@ -54,6 +67,7 @@ navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-co
 sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqlDelight" }
 sqldelight-native-driver = { module = "app.cash.sqldelight:native-driver", version.ref = "sqlDelight" }
 sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "sqlDelight" }
+sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipherAndroid" }
 qr-kit = { module = "network.chaintech:qr-kit", version.ref = "qrKit" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesCore" }
 
@@ -64,5 +78,4 @@ composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-mu
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqlDelight" }

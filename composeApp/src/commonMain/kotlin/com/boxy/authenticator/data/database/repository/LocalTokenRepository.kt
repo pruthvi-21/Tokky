@@ -3,7 +3,7 @@ package com.boxy.authenticator.data.database.repository
 import com.boxy.authenticator.domain.database.dao.TokenDao
 import com.boxy.authenticator.domain.database.repository.TokenRepository
 import com.boxy.authenticator.domain.models.TokenEntry
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 class LocalTokenRepository(private val tokenDao: TokenDao) : TokenRepository {
     override fun getAllTokens(): List<TokenEntry> {

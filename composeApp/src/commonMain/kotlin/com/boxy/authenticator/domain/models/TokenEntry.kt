@@ -8,8 +8,8 @@ import com.boxy.authenticator.domain.models.otp.SteamInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo
 import com.boxy.authenticator.utils.Constants
 import io.ktor.http.encodeURLPath
-import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
+import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 

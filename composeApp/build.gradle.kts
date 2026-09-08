@@ -6,8 +6,29 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
-    alias(libs.plugins.ksp)
     alias(libs.plugins.sqldelight)
+}
+
+configurations.configureEach {
+    resolutionStrategy.force(
+        "androidx.compose.animation:animation:1.10.5",
+        "androidx.compose.animation:animation-core:1.10.5",
+        "androidx.compose.foundation:foundation:1.10.5",
+        "androidx.compose.foundation:foundation-layout:1.10.5",
+        "androidx.compose.runtime:runtime:1.10.5",
+        "androidx.compose.runtime:runtime-saveable:1.10.5",
+        "androidx.compose.ui:ui:1.10.5",
+        "androidx.compose.ui:ui-geometry:1.10.5",
+        "androidx.compose.ui:ui-graphics:1.10.5",
+        "androidx.compose.ui:ui-test:1.10.5",
+        "androidx.compose.ui:ui-test-junit4:1.10.5",
+        "androidx.compose.ui:ui-text:1.10.5",
+        "androidx.compose.ui:ui-tooling:1.10.5",
+        "androidx.compose.ui:ui-tooling-data:1.10.5",
+        "androidx.compose.ui:ui-tooling-preview:1.10.5",
+        "androidx.compose.ui:ui-unit:1.10.5",
+        "androidx.compose.ui:ui-util:1.10.5",
+    )
 }
 
 kotlin {
@@ -18,7 +39,6 @@ kotlin {
     }
 
     listOf(
-        iosX64(),
         iosArm64(),
         iosSimulatorArm64()
     ).forEach { iosTarget ->
@@ -38,7 +58,8 @@ kotlin {
             implementation(libs.koin.androidx.compose)
             implementation(libs.sqldelight.android.driver)
             implementation(libs.guava)
-            implementation(libs.android.database.sqlcipher)
+            implementation(libs.androidx.sqlite)
+            implementation(libs.sqlcipher.android)
         }
         commonMain.dependencies {
             implementation(projects.preferences)
@@ -93,6 +114,10 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 23
         versionName = "4.2.1"
+
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
     }
 
     packaging {
@@ -101,21 +126,10 @@ android {
         }
     }
 
-    applicationVariants.all {
-        val variant = this
-        variant.outputs
-            .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
-            .forEach { output ->
-                val abi = output.getFilter("ABI") ?: "universal"
-                if (variant.buildType.name == "release") {
-                    output.outputFileName = "boxy-authenticator-v${variant.versionName}-$abi.apk"
-                }
-            }
-    }
-
     buildTypes {
         getByName("release") {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -125,15 +139,6 @@ android {
             isMinifyEnabled = false
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
-        }
-    }
-
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-            isUniversalApk = true
         }
     }
 
@@ -164,5 +169,21 @@ sqldelight {
 
 dependencies {
     debugImplementation(compose.uiTooling)
-}
 
+    constraints {
+        listOf(
+            libs.androidx.compose.animation,
+            libs.androidx.compose.animation.core,
+            libs.androidx.compose.foundation,
+            libs.androidx.compose.foundation.layout,
+            libs.androidx.compose.runtime.saveable,
+            libs.androidx.compose.ui,
+            libs.androidx.compose.ui.graphics,
+            libs.androidx.compose.ui.test,
+            libs.androidx.compose.ui.test.junit4,
+            libs.androidx.compose.ui.text,
+            libs.androidx.compose.ui.tooling,
+            libs.androidx.compose.ui.tooling.data,
+        ).forEach { implementation(it) }
+    }
+}

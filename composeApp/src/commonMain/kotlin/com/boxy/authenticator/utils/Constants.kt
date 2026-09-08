@@ -9,7 +9,7 @@ object Constants {
         "#C8AA4B",
     )
 
-    const val THUMBNAIL_ICON_PATH = "drawable/icons"
+    const val THUMBNAIL_ICON_PATH = "drawable"
     const val EXPORT_FILE_NAME_PREFIX = "boxy_accounts_"
     const val EXPORT_FILE_EXTENSION = "txt"
     const val EXPORT_ENCRYPTED_FILE_EXTENSION = "boxy"

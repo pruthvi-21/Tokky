@@ -1,6 +1,5 @@
 package com.boxy.authenticator.core.otp
 
-import kotlinx.datetime.Clock
 import kotlin.math.floor
 
 object OtpGenerator {
