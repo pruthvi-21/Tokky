@@ -3,6 +3,9 @@ package com.boxy.authenticator.ui.viewmodels
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import boxy_authenticator.composeapp.generated.resources.Res
+import boxy_authenticator.composeapp.generated.resources.account_delete_failed
+import boxy_authenticator.composeapp.generated.resources.account_save_failed
 import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.core.Logger
 import com.boxy.authenticator.core.TokenEntryParser
@@ -23,11 +26,14 @@ import com.boxy.authenticator.domain.usecases.InsertTokenUseCase
 import com.boxy.authenticator.domain.usecases.ReplaceExistingTokenUseCase
 import com.boxy.authenticator.domain.usecases.UpdateTokenUseCase
 import com.boxy.authenticator.ui.state.TokenSetupUiState
+import com.boxy.authenticator.ui.state.DataLoadState
 import com.boxy.authenticator.utils.TokenNameExistsException
 import com.boxy.authenticator.utils.cleanSecretKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
 
 class TokenSetupViewModel(
@@ -58,7 +64,10 @@ class TokenSetupViewModel(
     )
 
     fun setStateFromToken(token: TokenEntry?, setupMode: TokenSetupMode) {
-        if (token == null) return
+        if (token == null) {
+            _uiState.value = _uiState.value.copy(editLoadState = DataLoadState.Error("Account not found"))
+            return
+        }
 
         currentToken = token
         _uiState.value = _uiState.value.copy(
@@ -69,7 +78,8 @@ class TokenSetupViewModel(
             algorithm = token.otpInfo.algorithm,
             digits = token.otpInfo.digits.toString(),
             isInEditMode = true,
-            tokenSetupMode = setupMode
+            tokenSetupMode = setupMode,
+            editLoadState = DataLoadState.Data(Unit),
         )
 
         _uiState.value = when (token.otpInfo) {
@@ -99,7 +109,27 @@ class TokenSetupViewModel(
         setStateFromToken(token, TokenSetupMode.URL)
     }
 
+    fun loadToken(tokenId: String) {
+        if (_uiState.value.editLoadState == DataLoadState.Loading) return
+        _uiState.value = _uiState.value.copy(editLoadState = DataLoadState.Loading)
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.Default) { fetchTokenByIdUseCase(tokenId) }
+            result.fold(
+                onSuccess = { setStateFromToken(it, TokenSetupMode.UPDATE) },
+                onFailure = {
+                    logger.e("Failed to load token", it)
+                    _uiState.value = _uiState.value.copy(
+                        editLoadState = DataLoadState.Error(it.message ?: "Unknown error"),
+                    )
+                },
+            )
+        }
+    }
+
     fun onEvent(event: TokenFormEvent) {
+        if (event !is TokenFormEvent.Submit && _uiState.value.operationError != null) {
+            _uiState.value = _uiState.value.copy(operationError = null)
+        }
         when (event) {
             is TokenFormEvent.IssuerChanged -> {
                 updateState {
@@ -282,11 +312,12 @@ class TokenSetupViewModel(
         }
     }
 
-    private fun insertToken(
+    private suspend fun insertToken(
         token: TokenEntry,
         event: TokenFormEvent.Submit,
     ) {
-        insertTokenUseCase(token)
+        _uiState.value = _uiState.value.copy(isSaving = true, operationError = null)
+        withContext(Dispatchers.Default) { insertTokenUseCase(token) }
             .onSuccess { event.onComplete() }
             .onFailure { exception ->
                 logger.e("insertToken: Failed to insert token", exception)
@@ -294,21 +325,28 @@ class TokenSetupViewModel(
                 if (exception is TokenNameExistsException) {
                     exception.token?.let { event.onDuplicate(token, it) }
                 } else {
-                    // TODO: display a error
+                    _uiState.value = _uiState.value.copy(
+                        operationError = getString(Res.string.account_save_failed),
+                    )
                 }
             }
+        _uiState.value = _uiState.value.copy(isSaving = false)
     }
 
-    private fun updateToken(
+    private suspend fun updateToken(
         token: TokenEntry,
         event: TokenFormEvent.Submit,
     ) {
-        updateTokenUseCase(token)
+        _uiState.value = _uiState.value.copy(isSaving = true, operationError = null)
+        withContext(Dispatchers.Default) { updateTokenUseCase(token) }
             .onSuccess { event.onComplete() }
             .onFailure {
                 logger.e("updateToken: Failed to update token", it)
-                // TODO: display a error
+                _uiState.value = _uiState.value.copy(
+                    operationError = getString(Res.string.account_save_failed),
+                )
             }
+        _uiState.value = _uiState.value.copy(isSaving = false)
     }
 
     private fun updateFieldVisibilityState() {
@@ -344,19 +382,39 @@ class TokenSetupViewModel(
             showBackPressDialog = initialUiState.showBackPressDialog,
             showDeleteTokenDialog = initialUiState.showDeleteTokenDialog,
             showDuplicateTokenDialog = initialUiState.showDuplicateTokenDialog,
+            editLoadState = initialUiState.editLoadState,
+            isSaving = initialUiState.isSaving,
+            operationError = initialUiState.operationError,
         )
     }
 
-    fun deleteToken() {
-        currentToken?.let { deleteTokenUseCase(it.id) }
+    suspend fun deleteToken(): Boolean {
+        val token = currentToken ?: return false
+        _uiState.value = _uiState.value.copy(isSaving = true, operationError = null)
+        val result = withContext(Dispatchers.Default) { deleteTokenUseCase(token.id) }
+        result.onFailure { logger.e("Failed to delete token", it) }
+        _uiState.value = _uiState.value.copy(
+            isSaving = false,
+            operationError = if (result.isFailure) {
+                getString(Res.string.account_delete_failed)
+            } else null,
+        )
+        return result.isSuccess
     }
 
-    fun replaceExistingToken(existingToken: TokenEntry, token: TokenEntry) {
-        replaceExistingTokenUseCase(existingToken, token)
-    }
-
-    fun getTokenFromId(tokenId: String): TokenEntry? {
-        return fetchTokenByIdUseCase.invoke(tokenId).fold(onSuccess = { it }, onFailure = { null })
+    suspend fun replaceExistingToken(existingToken: TokenEntry, token: TokenEntry): Boolean {
+        _uiState.value = _uiState.value.copy(isSaving = true, operationError = null)
+        val result = withContext(Dispatchers.Default) {
+            replaceExistingTokenUseCase(existingToken, token)
+        }
+        result.onFailure { logger.e("Failed to replace token", it) }
+        _uiState.value = _uiState.value.copy(
+            isSaving = false,
+            operationError = if (result.isFailure) {
+                getString(Res.string.account_save_failed)
+            } else null,
+        )
+        return result.isSuccess
     }
 
     fun showBackPressDialog(show: Boolean) {

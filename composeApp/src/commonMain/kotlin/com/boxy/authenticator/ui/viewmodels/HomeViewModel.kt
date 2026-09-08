@@ -6,9 +6,12 @@ import com.boxy.authenticator.core.Logger
 import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.domain.usecases.FetchTokensUseCase
 import com.boxy.authenticator.ui.state.HomeUiState
+import com.boxy.authenticator.ui.state.DataLoadState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HomeViewModel(
     private val settingsDataStore: SettingsDataStore,
@@ -20,37 +23,39 @@ class HomeViewModel(
     val uiState = _uiState.asStateFlow()
 
     fun loadTokens() {
-        _uiState.value = _uiState.value.copy(isLoading = true)
+        if (_uiState.value.isRefreshing) return
+        val currentState = _uiState.value.tokensState
+        _uiState.value = _uiState.value.copy(
+            tokensState = if (currentState is DataLoadState.Data) currentState else DataLoadState.Loading,
+            isRefreshing = true,
+        )
         viewModelScope.launch {
-            fetchTokensUseCase().fold(
-                onSuccess = { tokens ->
-                    val disableBackupAlerts = settingsDataStore.isDisableBackupAlertsEnabled()
-                    val lastBackupTime = settingsDataStore.getLastBackupTimestamp()
-
-                    if (disableBackupAlerts || tokens.isEmpty()) {
-                        _uiState.value = _uiState.value.copy(
-                            hasTakenAtleastOneBackup = true,
-                            isLastBackupOutdated = false,
-                        )
-                    } else {
-                        _uiState.value = _uiState.value.copy(
-                            hasTakenAtleastOneBackup = lastBackupTime != -1L,
-                            isLastBackupOutdated = tokens.any { it.updatedOn > lastBackupTime },
-                        )
-                    }
+            runCatching {
+                withContext(Dispatchers.Default) {
+                    Triple(
+                        fetchTokensUseCase().getOrThrow(),
+                        settingsDataStore.isDisableBackupAlertsEnabled(),
+                        settingsDataStore.getLastBackupTimestamp(),
+                    )
+                }
+            }.fold(
+                onSuccess = { (tokens, disableBackupAlerts, lastBackupTime) ->
 
                     _uiState.value = _uiState.value.copy(
-                        tokens = tokens,
-                        isInitialLoadComplete = true,
-                        isLoading = false,
-                        error = null,
+                        tokensState = DataLoadState.Data(tokens),
+                        isRefreshing = false,
+                        hasTakenAtleastOneBackup = disableBackupAlerts || tokens.isEmpty() || lastBackupTime != -1L,
+                        isLastBackupOutdated = !disableBackupAlerts &&
+                                tokens.isNotEmpty() &&
+                                lastBackupTime != -1L &&
+                                tokens.any { it.updatedOn > lastBackupTime },
                     )
                 },
                 onFailure = { exception ->
                     logger.e(exception.message, exception)
                     _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = exception.message ?: "Unknown error",
+                        tokensState = DataLoadState.Error(exception.message ?: "Unknown error"),
+                        isRefreshing = false,
                     )
                 }
             )

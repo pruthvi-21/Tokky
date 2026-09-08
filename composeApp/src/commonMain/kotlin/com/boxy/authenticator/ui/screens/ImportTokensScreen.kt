@@ -1,9 +1,14 @@
 package com.boxy.authenticator.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,11 +29,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,8 +53,10 @@ import boxy_authenticator.composeapp.generated.resources.hint_label
 import boxy_authenticator.composeapp.generated.resources.import_accounts
 import boxy_authenticator.composeapp.generated.resources.import_from
 import boxy_authenticator.composeapp.generated.resources.import_label
+import boxy_authenticator.composeapp.generated.resources.loading_file
 import boxy_authenticator.composeapp.generated.resources.plain_text_file
 import boxy_authenticator.composeapp.generated.resources.proceed
+import boxy_authenticator.composeapp.generated.resources.retry
 import boxy_authenticator.composeapp.generated.resources.rename
 import boxy_authenticator.composeapp.generated.resources.warning
 import com.boxy.authenticator.core.TokenFormValidator
@@ -75,8 +84,6 @@ fun ImportTokensScreen(navController: NavController) {
     val importTokensViewModel: ImportTokensViewModel = koinInject()
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-
     val importState by importTokensViewModel.uiState.collectAsStateWithLifecycle()
 
     BoxyScaffold(
@@ -96,12 +103,23 @@ fun ImportTokensScreen(navController: NavController) {
                 .padding(horizontal = 16.dp)
         ) {
 
-            when (val uiState = importState) {
-                is ImportTokensViewModel.UiState.Initial -> {
-
-                    if (uiState.message != null) {
-                        scope.launch { snackbarHostState.showSnackbar(uiState.message) }
+            AnimatedContent(
+                targetState = importState,
+                contentKey = { state ->
+                    when (state) {
+                        ImportTokensViewModel.UiState.Initial -> "initial"
+                        ImportTokensViewModel.UiState.Loading -> "loading"
+                        is ImportTokensViewModel.UiState.Error -> "error"
+                        is ImportTokensViewModel.UiState.FileLoaded -> "loaded"
+                        is ImportTokensViewModel.UiState.RequestPassword -> "password"
                     }
+                },
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "import-data-state",
+                modifier = Modifier.fillMaxSize(),
+            ) { uiState ->
+            when (uiState) {
+                ImportTokensViewModel.UiState.Initial -> {
 
                     BoxyPreferenceScreen {
                         item {
@@ -128,7 +146,37 @@ fun ImportTokensScreen(navController: NavController) {
                     }
                 }
 
+                ImportTokensViewModel.UiState.Loading -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Text(
+                            stringResource(Res.string.loading_file),
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    }
+                }
+
+                is ImportTokensViewModel.UiState.Error -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(uiState.message, color = MaterialTheme.colorScheme.error)
+                    BoxyButton(
+                        onClick = importTokensViewModel::setInitialState,
+                        modifier = Modifier.padding(top = 12.dp),
+                    ) { Text(stringResource(Res.string.retry)) }
+                }
+
                 is ImportTokensViewModel.UiState.FileLoaded -> {
+                    LaunchedEffect(uiState.errorMessage) {
+                        val message = uiState.errorMessage ?: return@LaunchedEffect
+                        snackbarHostState.showSnackbar(message)
+                        importTokensViewModel.clearErrorMessage()
+                    }
                     val tokensToImport = uiState.list
 
                     DuplicateTokensWarningDialog(
@@ -138,9 +186,9 @@ fun ImportTokensScreen(navController: NavController) {
                             importTokensViewModel.showDuplicateWarningDialog.value = false
                         },
                         onConfirmRequest = {
-                            importTokensViewModel.importAccounts(tokensToImport) {
+                            importTokensViewModel.importAccounts(tokensToImport) { success ->
                                 importTokensViewModel.showDuplicateWarningDialog.value = false
-                                navController.navigateUp()
+                                if (success) navController.navigateUp()
                             }
                         }
                     )
@@ -160,19 +208,23 @@ fun ImportTokensScreen(navController: NavController) {
                             if (tokensToImport.any { it.isDuplicate }) {
                                 importTokensViewModel.showDuplicateWarningDialog.value = true
                             } else {
-                                importTokensViewModel.importAccounts(tokensToImport) {
+                                importTokensViewModel.importAccounts(tokensToImport) { success ->
                                     importTokensViewModel.showDuplicateWarningDialog.value = false
-                                    navController.navigateUp()
+                                    if (success) navController.navigateUp()
                                 }
                             }
                         },
-                        enabled = tokensToImport.any { it.isChecked },
+                        enabled = tokensToImport.any { it.isChecked } && !uiState.isImporting,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 10.dp)
                             .heightIn(min = 46.dp)
                     ) {
-                        Text(text = stringResource(Res.string.import_label))
+                        if (uiState.isImporting) {
+                            CircularProgressIndicator(modifier = Modifier.height(24.dp))
+                        } else {
+                            Text(text = stringResource(Res.string.import_label))
+                        }
                     }
                 }
 
@@ -188,6 +240,7 @@ fun ImportTokensScreen(navController: NavController) {
                         }
                     )
                 }
+            }
             }
         }
     }

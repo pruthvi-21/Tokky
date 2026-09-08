@@ -11,6 +11,9 @@ import com.boxy.authenticator.ui.viewmodels.TokenSetupViewModel.DuplicateTokenDi
 import com.boxy.authenticator.utils.Constants.THUMBNAIL_COlORS
 
 data class TokenSetupUiState(
+    val editLoadState: DataLoadState<Unit> = DataLoadState.Initial,
+    val isSaving: Boolean = false,
+    val operationError: String? = null,
     val issuer: String = "",
     val label: String = "",
     val secretKey: String = "",

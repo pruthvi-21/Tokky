@@ -10,13 +10,16 @@ import com.boxy.authenticator.domain.models.ExportableTokenEntry
 import com.boxy.authenticator.domain.models.generateOtpAuthUrl
 import com.boxy.authenticator.domain.usecases.FetchTokensUseCase
 import com.boxy.authenticator.ui.state.ExportUiState
+import com.boxy.authenticator.ui.state.DataLoadState
 import com.boxy.authenticator.utils.Constants
 import com.boxy.authenticator.utils.Constants.EXPORT_ENCRYPTED_FILE_EXTENSION
 import com.boxy.authenticator.utils.Constants.EXPORT_FILE_EXTENSION
 import io.github.vinceglb.filekit.core.FileKit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.JsonArray
@@ -33,26 +36,26 @@ class ExportTokensViewModel(
     val uiState = _uiState.asStateFlow()
 
     fun loadAllTokens() {
+        if (_uiState.value.tokensState == DataLoadState.Loading) return
         _uiState.value = _uiState.value.copy(
-            tokensFetchError = false,
-            tokens = emptyList(),
+            tokensState = DataLoadState.Loading,
         )
 
-        fetchTokensUseCase().fold(
-            onSuccess = {
+        viewModelScope.launch {
+            withContext(Dispatchers.Default) { fetchTokensUseCase() }.fold(
+                onSuccess = {
                 _uiState.value = _uiState.value.copy(
-                    tokensFetchError = false,
-                    tokens = it,
+                    tokensState = DataLoadState.Data(it),
                 )
             },
             onFailure = {
                 logger.e(it.message, it)
                 _uiState.value = _uiState.value.copy(
-                    tokensFetchError = true,
-                    tokens = emptyList(),
+                    tokensState = DataLoadState.Error(it.message ?: "Unknown error"),
                 )
             }
-        )
+            )
+        }
     }
 
     fun showPlainTextWarningDialog(show: Boolean) {
@@ -64,18 +67,34 @@ class ExportTokensViewModel(
     }
 
     fun exportToPlainTextFile(onDone: (Boolean) -> Unit) = viewModelScope.launch {
-        val exportData = _uiState.value.tokens.joinToString("\n") { it.generateOtpAuthUrl() }
-        val status = saveToFile(exportData.encodeToByteArray(), EXPORT_FILE_EXTENSION)
+        if (_uiState.value.isExporting) return@launch
+        val tokens = (_uiState.value.tokensState as? DataLoadState.Data)?.value ?: return@launch
+        _uiState.value = _uiState.value.copy(isExporting = true)
+        val status = runCatching {
+            val data = withContext(Dispatchers.Default) {
+                tokens.joinToString("\n") { it.generateOtpAuthUrl() }.encodeToByteArray()
+            }
+            saveToFile(data, EXPORT_FILE_EXTENSION)
+        }.onFailure { logger.e(it.message, it) }.getOrDefault(false)
+        _uiState.value = _uiState.value.copy(isExporting = false)
         onDone(status)
     }
 
     fun exportToBoxyFile(password: String, onDone: (Boolean) -> Unit) = viewModelScope.launch {
-        val tokensJsonArray = JsonArray(_uiState.value.tokens.map { token ->
-            BoxyJson.encodeToJsonElement(ExportableTokenEntry.fromTokenEntry(token))
-        })
-        val exportData = BoxyJson.encodeToString(tokensJsonArray)
-        val encryptedExportData = Crypto.encrypt(password, exportData)
-        val status = saveToFile(encryptedExportData, EXPORT_ENCRYPTED_FILE_EXTENSION)
+        if (_uiState.value.isExporting) return@launch
+        val tokens = (_uiState.value.tokensState as? DataLoadState.Data)?.value ?: return@launch
+        _uiState.value = _uiState.value.copy(isExporting = true)
+        val status = runCatching {
+            val encryptedExportData = withContext(Dispatchers.Default) {
+                val tokensJsonArray = JsonArray(tokens.map { token ->
+                    BoxyJson.encodeToJsonElement(ExportableTokenEntry.fromTokenEntry(token))
+                })
+                val exportData = BoxyJson.encodeToString(tokensJsonArray)
+                Crypto.encrypt(password, exportData)
+            }
+            saveToFile(encryptedExportData, EXPORT_ENCRYPTED_FILE_EXTENSION)
+        }.onFailure { logger.e(it.message, it) }.getOrDefault(false)
+        _uiState.value = _uiState.value.copy(isExporting = false)
         onDone(status)
     }
 
@@ -88,7 +107,11 @@ class ExportTokensViewModel(
 
         if (file != null) {
             val currentTimeMillis = Clock.System.now().toEpochMilliseconds()
-            settingsDataStore.setLastBackupTimestamp(currentTimeMillis)
+            runCatching {
+                settingsDataStore.setLastBackupTimestamp(currentTimeMillis)
+            }.onFailure {
+                logger.e("Backup was saved, but its timestamp could not be recorded", it)
+            }
         }
 
         return file != null

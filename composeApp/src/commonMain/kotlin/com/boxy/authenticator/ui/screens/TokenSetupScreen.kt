@@ -1,6 +1,10 @@
 package com.boxy.authenticator.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -29,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,6 +54,7 @@ import androidx.navigation.NavController
 import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.account_exists_dialog_message
 import boxy_authenticator.composeapp.generated.resources.account_exists_dialog_title
+import boxy_authenticator.composeapp.generated.resources.account_load_failed
 import boxy_authenticator.composeapp.generated.resources.cancel
 import boxy_authenticator.composeapp.generated.resources.dialog_message_delete_token
 import boxy_authenticator.composeapp.generated.resources.hint_counter
@@ -56,6 +62,7 @@ import boxy_authenticator.composeapp.generated.resources.hint_issuer
 import boxy_authenticator.composeapp.generated.resources.hint_label
 import boxy_authenticator.composeapp.generated.resources.hint_period
 import boxy_authenticator.composeapp.generated.resources.hint_secret_key
+import boxy_authenticator.composeapp.generated.resources.go_back
 import boxy_authenticator.composeapp.generated.resources.label_add_account
 import boxy_authenticator.composeapp.generated.resources.label_advanced_options
 import boxy_authenticator.composeapp.generated.resources.label_algorithm
@@ -70,6 +77,7 @@ import boxy_authenticator.composeapp.generated.resources.message_unsaved_changes
 import boxy_authenticator.composeapp.generated.resources.no
 import boxy_authenticator.composeapp.generated.resources.remove
 import boxy_authenticator.composeapp.generated.resources.remove_account
+import boxy_authenticator.composeapp.generated.resources.retry
 import boxy_authenticator.composeapp.generated.resources.rename
 import boxy_authenticator.composeapp.generated.resources.replace
 import boxy_authenticator.composeapp.generated.resources.title_enter_account_details
@@ -82,6 +90,7 @@ import com.boxy.authenticator.domain.models.enums.OTPType
 import com.boxy.authenticator.domain.models.enums.TokenSetupMode
 import com.boxy.authenticator.domain.models.form.TokenFormEvent
 import com.boxy.authenticator.ui.state.TokenSetupUiState
+import com.boxy.authenticator.ui.state.DataLoadState
 import com.boxy.authenticator.domain.models.otp.OtpInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo.Companion.DEFAULT_PERIOD
 import com.boxy.authenticator.ui.components.ThumbnailController
@@ -116,11 +125,36 @@ fun TokenSetupScreen(
 
     LaunchedEffect(tokenId) {
         if (tokenId != null && setupMode == TokenSetupMode.UPDATE) {
-            viewModel.setStateFromToken(viewModel.getTokenFromId(tokenId), TokenSetupMode.UPDATE)
+            viewModel.loadToken(tokenId)
         }
     }
 
-    TokenSetupScreen(
+    AnimatedContent(
+        targetState = uiState.editLoadState,
+        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        label = "token-edit-load-state",
+    ) { loadState ->
+    when (loadState) {
+    DataLoadState.Loading -> Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) { CircularProgressIndicator() }
+    is DataLoadState.Error -> Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(stringResource(Res.string.account_load_failed), color = MaterialTheme.colorScheme.error)
+        BoxyButton(
+            onClick = { tokenId?.let(viewModel::loadToken) },
+            modifier = Modifier.padding(top = 12.dp),
+        ) { Text(stringResource(Res.string.retry)) }
+        BoxyButton(
+            onClick = navController::navigateUp,
+            modifier = Modifier.padding(top = 8.dp),
+        ) { Text(stringResource(Res.string.go_back)) }
+    }
+    else -> TokenSetupScreen(
         uiState = uiState,
         lockSensitiveFields = viewModel.lockSensitiveFields,
         onFormEvent = viewModel::onEvent,
@@ -138,6 +172,8 @@ fun TokenSetupScreen(
         },
         navigateUp = navController::navigateUp
     )
+    }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -149,8 +185,8 @@ private fun TokenSetupScreen(
     showBackPressDialog: (Boolean) -> Unit,
     showDeleteTokenDialog: (Boolean) -> Unit,
     showDuplicateTokenDialog: (TokenSetupViewModel.DuplicateTokenDialogArgs) -> Unit,
-    deleteToken: () -> Unit,
-    replaceExistingToken: (existingToken: TokenEntry, token: TokenEntry) -> Unit,
+    deleteToken: suspend () -> Boolean,
+    replaceExistingToken: suspend (existingToken: TokenEntry, token: TokenEntry) -> Boolean,
     onBackPress: () -> Unit,
     navigateUp: () -> Unit,
 ) {
@@ -229,9 +265,9 @@ private fun TokenSetupScreen(
                     },
                     onConfirmation = {
                         scope.launch {
-                            deleteToken()
+                            val success = deleteToken()
                             showDeleteTokenDialog(false)
-                            navigateUp()
+                            if (success) navigateUp()
                         }
                     }
                 )
@@ -251,9 +287,11 @@ private fun TokenSetupScreen(
                         showDuplicateTokenDialog(TokenSetupViewModel.DuplicateTokenDialogArgs(false))
                     },
                     onConfirmation = {
-                        replaceExistingToken(args.existingToken!!, args.token)
-                        navigateUp()
-                        showDuplicateTokenDialog(TokenSetupViewModel.DuplicateTokenDialogArgs(false))
+                        scope.launch {
+                            val success = replaceExistingToken(args.existingToken!!, args.token)
+                            if (success) navigateUp()
+                            showDuplicateTokenDialog(TokenSetupViewModel.DuplicateTokenDialogArgs(false))
+                        }
                     }
                 )
             }
@@ -335,6 +373,14 @@ private fun TokenSetupScreen(
                 if (uiState.tokenSetupMode == TokenSetupMode.UPDATE) stringResource(Res.string.label_update_account)
                 else stringResource(Res.string.label_add_account)
 
+            uiState.operationError?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+
             BoxyButton(
                 onClick = {
                     keyboardController?.hide()
@@ -358,8 +404,13 @@ private fun TokenSetupScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp)
                     .heightIn(min = 46.dp),
+                enabled = !uiState.isSaving,
             ) {
-                Text(text = buttonText)
+                if (uiState.isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    Text(text = buttonText)
+                }
             }
         }
     }

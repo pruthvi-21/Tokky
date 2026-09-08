@@ -95,6 +95,7 @@
     <string name="error_fetching_tokens">Unknown error while fetching accounts</string>
     <string name="accounts_exported">Accounts exported.</string>
     <string name="export_failed">Export failed. Unable to save the file.</string>
+    <string name="no_accounts_to_export">There are no accounts to export.</string>
 
     <!-- ImportTokensScreen -->
     <string name="import_label">Import</string>
@@ -104,6 +105,16 @@
     <string name="failed_to_decrypt">Failed to decrypt the file.</string>
     <string name="import_screen_msg">Select a file to import your saved accounts.</string>
     <string name="failed_to_parse_file">Failed to parse the file</string>
+    <string name="failed_to_read_file">Failed to read the selected file.</string>
+    <string name="failed_to_check_duplicates">Unable to compare imported accounts with your vault. Nothing was imported.</string>
+    <string name="import_failed">Import failed. No accounts were added.</string>
+    <string name="loading_accounts">Loading accounts…</string>
+    <string name="unable_to_load_accounts">Unable to load your accounts.</string>
+    <string name="loading_file">Loading file…</string>
+    <string name="saving_accounts">Saving accounts…</string>
+    <string name="account_load_failed">Unable to load this account.</string>
+    <string name="account_save_failed">Unable to save this account. Please try again.</string>
+    <string name="account_delete_failed">Unable to remove this account. Please try again.</string>
     <string name="proceed">Proceed</string>
     <string name="load_file">Load file</string>
     <string name="load_encrypted_file">Load encrypted file</string>

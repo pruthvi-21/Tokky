@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.empty_content
 import boxy_authenticator.composeapp.generated.resources.failed_to_decrypt
-import boxy_authenticator.composeapp.generated.resources.failed_to_parse_file
+import boxy_authenticator.composeapp.generated.resources.failed_to_read_file
+import boxy_authenticator.composeapp.generated.resources.failed_to_check_duplicates
+import boxy_authenticator.composeapp.generated.resources.import_failed
 import boxy_authenticator.composeapp.generated.resources.no_tokens_to_import
 import com.boxy.authenticator.core.Logger
 import com.boxy.authenticator.core.TokenEntryParser
@@ -25,7 +27,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
 
 class ImportTokensViewModel(
@@ -42,55 +46,59 @@ class ImportTokensViewModel(
     )
 
     sealed class UiState {
-        data class Initial(val message: String? = null) : UiState()
-        data class FileLoaded(val list: List<ImportItem>) : UiState()
+        data object Initial : UiState()
+        data object Loading : UiState()
+        data class Error(val message: String) : UiState()
+        data class FileLoaded(
+            val list: List<ImportItem>,
+            val isImporting: Boolean = false,
+            val errorMessage: String? = null,
+        ) : UiState()
         data class RequestPassword(val file: PlatformFile) : UiState()
     }
 
-    private val _uiState = MutableStateFlow<UiState>(UiState.Initial())
+    private val _uiState = MutableStateFlow<UiState>(UiState.Initial)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     val showRenameTokenDialogWithId = mutableStateOf<String?>(null)
     val showDuplicateWarningDialog = mutableStateOf(false)
 
     fun setInitialState() {
-        _uiState.update { UiState.Initial() }
+        _uiState.update { UiState.Initial }
     }
 
     fun pickFile(isEncrypted: Boolean) = viewModelScope.launch {
-        val file = FileKit.pickFile() ?: run {
-            logger.e("File selection failed.")
-            return@launch
-        }
-
-        val fileContent = file.readBytes()
-        if (fileContent.isEmpty()) {
-            _uiState.update { UiState.Initial(getString(Res.string.empty_content)) }
+        val file = runCatching { FileKit.pickFile() }
+            .onFailure { logger.e("File selection failed", it) }
+            .getOrElse {
+                _uiState.value = UiState.Error(getString(Res.string.failed_to_read_file))
+                return@launch
+            } ?: run {
             return@launch
         }
 
         if (isEncrypted) {
             _uiState.update { UiState.RequestPassword(file) }
         } else {
-            val tokens = decodePlainContent(fileContent.decodeToString())
-            when {
-                tokens?.isEmpty() == true -> {
-                    _uiState.update { UiState.Initial(getString(Res.string.no_tokens_to_import)) }
-                }
-
-                tokens != null -> {
-                    _uiState.update { UiState.FileLoaded(tokens) }
-                }
-
-                else -> {
-                    _uiState.update { UiState.Initial(getString(Res.string.failed_to_parse_file)) }
+            _uiState.update { UiState.Loading }
+            val result = withContext(Dispatchers.Default) {
+                runCatching {
+                    val fileContent = file.readBytes()
+                    if (fileContent.isEmpty()) throw EmptyFileException()
+                    val tokens = decodePlainContent(fileContent.decodeToString())
+                    if (tokens.isEmpty()) throw NoTokensException()
+                    buildImportListFromTokens(tokens).getOrThrow()
                 }
             }
+            _uiState.value = result.fold(
+                onSuccess = { UiState.FileLoaded(it) },
+                onFailure = { UiState.Error(messageForFileError(it)) },
+            )
         }
     }
 
-    private fun decodePlainContent(fileContent: String): List<ImportItem>? {
-        return try {
+    private fun decodePlainContent(fileContent: String): List<TokenEntry> {
+        return runCatching {
             val list = fileContent.split("\n")
             val tokensList = arrayListOf<TokenEntry>()
 
@@ -103,47 +111,54 @@ class ImportTokensViewModel(
                 }
             }
 
-            buildImportListFromTokens(tokensList)
-        } catch (e: Exception) {
-            logger.e(e.message, e)
-            null
-        }
+            tokensList
+        }.onFailure { logger.e(it.message, it) }.getOrThrow()
     }
 
     fun decodeEncryptedContent(
         file: PlatformFile,
         password: String,
     ) = viewModelScope.launch {
-        val fileContent = file.readBytes()
-
-        val decodedData = try {
-            val decryptedData = Crypto.decrypt(password, fileContent)
-            val list = BoxyJson.decodeFromString<List<ExportableTokenEntry>>(decryptedData)
-                .map { it.toTokenEntry() }
-
-            buildImportListFromTokens(list)
-        } catch (e: Exception) {
-            logger.e(e)
-            null
-        }
-
-        _uiState.update {
-            if (decodedData == null) {
-                UiState.Initial(getString(Res.string.failed_to_decrypt))
-            } else {
-                UiState.FileLoaded(decodedData)
+        _uiState.value = UiState.Loading
+        val result = withContext(Dispatchers.Default) {
+            runCatching {
+                val fileContent = file.readBytes()
+                val decryptedData = Crypto.decrypt(password, fileContent)
+                val list = BoxyJson.decodeFromString<List<ExportableTokenEntry>>(decryptedData)
+                    .map { it.toTokenEntry() }
+                if (list.isEmpty()) throw NoTokensException()
+                buildImportListFromTokens(list).getOrThrow()
             }
         }
+        _uiState.value = result.fold(
+            onSuccess = { UiState.FileLoaded(it) },
+            onFailure = {
+                logger.e(it)
+                UiState.Error(
+                    if (it is DuplicateCheckException) getString(Res.string.failed_to_check_duplicates)
+                    else if (it is NoTokensException) getString(Res.string.no_tokens_to_import)
+                    else getString(Res.string.failed_to_decrypt)
+                )
+            },
+        )
     }
 
-    fun importAccounts(tokens: List<ImportItem>, onComplete: () -> Unit) = viewModelScope.launch {
+    fun importAccounts(tokens: List<ImportItem>, onComplete: (Boolean) -> Unit) = viewModelScope.launch {
+        val current = _uiState.value as? UiState.FileLoaded ?: return@launch
+        if (current.isImporting) return@launch
         val tokensToInsert = tokens
             .filter { !it.isDuplicate }
             .filter { it.isChecked }
             .map { it.token }
 
-        insertTokensUseCase(tokensToInsert)
-        onComplete()
+        _uiState.value = current.copy(isImporting = true, errorMessage = null)
+        val result = withContext(Dispatchers.Default) { insertTokensUseCase(tokensToInsert) }
+        result.onFailure { logger.e(it.message, it) }
+        _uiState.value = current.copy(
+            isImporting = false,
+            errorMessage = if (result.isFailure) getString(Res.string.import_failed) else null,
+        )
+        onComplete(result.isSuccess)
     }
 
     fun toggleToken(token: ImportItem) {
@@ -162,12 +177,11 @@ class ImportTokensViewModel(
         }
     }
 
-    private fun buildImportListFromTokens(tokens: List<TokenEntry>): List<ImportItem> {
-        fetchTokensUseCase()
-            .fold(
-                onSuccess = { data ->
+    private fun buildImportListFromTokens(tokens: List<TokenEntry>): Result<List<ImportItem>> {
+        return fetchTokensUseCase()
+            .map { data ->
                     val existingAccountNames = data.map { it.name }.toSet()
-                    return tokens.map { token ->
+                    tokens.map { token ->
                         val isDuplicate = existingAccountNames.contains(token.name)
                         ImportItem(
                             token = token,
@@ -175,17 +189,8 @@ class ImportTokensViewModel(
                             isDuplicate = isDuplicate,
                         )
                     }.sortedBy { it.token.name }
-                },
-                onFailure = {
-                    return tokens.map { token ->
-                        ImportItem(
-                            token = token,
-                            isChecked = true,
-                            isDuplicate = false,
-                        )
-                    }
                 }
-            )
+            .recoverCatching { throw DuplicateCheckException(it) }
     }
 
     fun updateToken(token: TokenEntry, issuer: String, label: String) = viewModelScope.launch {
@@ -207,11 +212,38 @@ class ImportTokensViewModel(
         }
     }
 
-    private fun checkIfDuplicate(token: TokenEntry): Boolean {
-        return fetchTokenByNameUseCase(token.issuer, token.label)
+    private suspend fun checkIfDuplicate(token: TokenEntry): Boolean {
+        return withContext(Dispatchers.Default) {
+            fetchTokenByNameUseCase(token.issuer, token.label)
+        }
             .fold(
                 onSuccess = { it != null },
-                onFailure = { false }
+                onFailure = {
+                    val current = _uiState.value as? UiState.FileLoaded
+                    if (current != null) {
+                        _uiState.value = current.copy(errorMessage = getString(Res.string.failed_to_check_duplicates))
+                    }
+                    true
+                }
             )
     }
+
+    fun clearErrorMessage() {
+        val current = _uiState.value as? UiState.FileLoaded ?: return
+        _uiState.value = current.copy(errorMessage = null)
+    }
+
+    private suspend fun messageForFileError(error: Throwable): String {
+        logger.e(error.message, error)
+        return when (error) {
+            is EmptyFileException -> getString(Res.string.empty_content)
+            is NoTokensException -> getString(Res.string.no_tokens_to_import)
+            is DuplicateCheckException -> getString(Res.string.failed_to_check_duplicates)
+            else -> getString(Res.string.failed_to_read_file)
+        }
+    }
+
+    private class EmptyFileException : Exception()
+    private class NoTokensException : Exception()
+    private class DuplicateCheckException(cause: Throwable) : Exception(cause)
 }

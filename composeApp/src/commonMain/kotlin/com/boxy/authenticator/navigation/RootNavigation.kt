@@ -168,6 +168,7 @@ fun RootNavigation(
                 exportToBoxyFile = { password, onDone ->
                     exportViewModel.exportToBoxyFile(password, onDone)
                 },
+                retryLoad = exportViewModel::loadAllTokens,
                 onNavigateUp = { navController.navigateUp() }
             )
         }
