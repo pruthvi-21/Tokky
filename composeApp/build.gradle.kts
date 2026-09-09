@@ -87,10 +87,12 @@ kotlin {
             implementation(libs.moko.biometry.compose)
             implementation(libs.diglol.crypto.cipher)
             implementation(libs.diglol.crypto.kdf)
+            implementation(libs.diglol.crypto.mac)
             implementation(libs.diglol.crypto.random)
             implementation(libs.coil.compose)
             implementation(libs.qr.kit)
             implementation(libs.filekit)
+            implementation(libs.signum.supreme)
         }
         iosMain.dependencies {
             implementation(libs.sqldelight.native.driver)

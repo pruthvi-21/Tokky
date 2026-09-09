@@ -26,6 +26,7 @@ preferenceKtx = "1.2.1"
 qrKit = "3.0.6"
 sqlcipherAndroid = "4.18.0"
 sqlDelight = "2.3.2"
+signum = "0.10.2"
 
 [libraries]
 androidx-compose-animation = { module = "androidx.compose.animation:animation", version.ref = "compose-androidx" }
@@ -49,6 +50,7 @@ androidx-preference-ktx = { module = "androidx.preference:preference-ktx", versi
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }
 diglol-crypto-cipher = { module = "com.diglol.crypto:cipher", version.ref = "diglol-crypto" }
 diglol-crypto-kdf = { module = "com.diglol.crypto:kdf", version.ref = "diglol-crypto" }
+diglol-crypto-mac = { module = "com.diglol.crypto:mac", version.ref = "diglol-crypto" }
 diglol-crypto-random = { module = "com.diglol.crypto:random", version.ref = "diglol-crypto" }
 filekit = { module = "io.github.vinceglb:filekit-core", version.ref = "filekit" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
@@ -68,6 +70,7 @@ sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", ver
 sqldelight-native-driver = { module = "app.cash.sqldelight:native-driver", version.ref = "sqlDelight" }
 sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "sqlDelight" }
 sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipherAndroid" }
+signum-supreme = { module = "at.asitplus.signum:supreme", version.ref = "signum" }
 qr-kit = { module = "network.chaintech:qr-kit", version.ref = "qrKit" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesCore" }
 

@@ -82,8 +82,13 @@
     <string name="no_backup_taken_msg">You haven't created a backup yet. Set one up to keep your accounts safe.</string>
     <string name="outdated_backup_msg">Your last backup is outdated.</string>
     <string name="export_to">Export to</string>
-    <string name="boxy_file">Boxy file</string>
+    <string name="encrypted_backup_file">Encrypted backup file</string>
     <string name="plain_text_file">Plain text file</string>
+    <string name="aegis_backup_file">Aegis backup file</string>
+    <string name="invalid_aegis_backup">The Aegis backup is invalid or corrupted.</string>
+    <string name="unsupported_aegis_version">This Aegis backup version is not supported.</string>
+    <string name="unsupported_aegis_token_type">This Aegis backup contains an unsupported token type.</string>
+    <string name="unsupported_aegis_encryption">This Aegis backup has no password slot. Biometric-only backups cannot be imported.</string>
     <string name="enter_password_to_decrypt">Enter password to decrypt</string>
     <string name="i_understand_the_risk">I understand the risk.</string>
     <string name="warning_no_backup_encryption">Your backup will not be encrypted, and no thumbnail data will be saved. Anyone with access to the backup file can view its contents.</string>
@@ -106,6 +111,7 @@
     <string name="import_screen_msg">Select a file to import your saved accounts.</string>
     <string name="failed_to_parse_file">Failed to parse the file</string>
     <string name="failed_to_read_file">Failed to read the selected file.</string>
+    <string name="file_too_large">The selected file is too large to import.</string>
     <string name="failed_to_check_duplicates">Unable to compare imported accounts with your vault. Nothing was imported.</string>
     <string name="import_failed">Import failed. No accounts were added.</string>
     <string name="loading_accounts">Loading accounts…</string>

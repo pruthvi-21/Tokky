@@ -32,7 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.accounts_exported
-import boxy_authenticator.composeapp.generated.resources.boxy_file
+import boxy_authenticator.composeapp.generated.resources.encrypted_backup_file
 import boxy_authenticator.composeapp.generated.resources.error_fetching_tokens
 import boxy_authenticator.composeapp.generated.resources.export
 import boxy_authenticator.composeapp.generated.resources.export_accounts
@@ -68,7 +68,7 @@ fun ExportTokensScreen(
     showPlainTextWarningDialog: (show: Boolean) -> Unit,
     showSetPasswordDialog: (show: Boolean) -> Unit,
     exportToPlainTextFile: (onDone: (Boolean) -> Unit) -> Unit,
-    exportToBoxyFile: (password: String, onDone: (Boolean) -> Unit) -> Unit,
+    exportToEncryptedFile: (password: String, onDone: (Boolean) -> Unit) -> Unit,
     retryLoad: () -> Unit,
     onNavigateUp: () -> Unit,
 ) {
@@ -133,7 +133,7 @@ fun ExportTokensScreen(
                         Preference(
                             title = {
                                 Text(
-                                    stringResource(Res.string.boxy_file) +
+                                    stringResource(Res.string.encrypted_backup_file) +
                                             " (${stringResource(Res.string.recommended)})"
                                 )
                             },
@@ -218,7 +218,7 @@ fun ExportTokensScreen(
                 },
                 onConfirmation = { password ->
                     showSetPasswordDialog(false)
-                    exportToBoxyFile(password) {
+                    exportToEncryptedFile(password) {
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar(
                                 if (it) getString(Res.string.accounts_exported)

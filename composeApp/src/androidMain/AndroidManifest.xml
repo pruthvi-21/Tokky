@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Signum's isolated AES-GCM/scrypt code uses Android APIs available below API 30. -->
+    <uses-sdk tools:overrideLibrary="at.asitplus.signum.supreme" />
 
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -16,6 +20,10 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Boxy">
+        <!-- The lifecycle/logging initializer is unrelated to the in-memory crypto APIs we use. -->
+        <provider
+            android:name="at.asitplus.signum.supreme.InitProvider"
+            tools:node="remove" />
         <activity
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"

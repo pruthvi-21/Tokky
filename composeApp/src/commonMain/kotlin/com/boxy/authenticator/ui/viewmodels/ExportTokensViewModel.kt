@@ -13,7 +13,7 @@ import com.boxy.authenticator.ui.state.ExportUiState
 import com.boxy.authenticator.ui.state.DataLoadState
 import com.boxy.authenticator.utils.Constants
 import com.boxy.authenticator.utils.Constants.EXPORT_ENCRYPTED_FILE_EXTENSION
-import com.boxy.authenticator.utils.Constants.EXPORT_FILE_EXTENSION
+import com.boxy.authenticator.utils.Constants.EXPORT_PLAIN_FILE_EXTENSION
 import io.github.vinceglb.filekit.core.FileKit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,13 +74,13 @@ class ExportTokensViewModel(
             val data = withContext(Dispatchers.Default) {
                 tokens.joinToString("\n") { it.generateOtpAuthUrl() }.encodeToByteArray()
             }
-            saveToFile(data, EXPORT_FILE_EXTENSION)
+            saveToFile(data, EXPORT_PLAIN_FILE_EXTENSION)
         }.onFailure { logger.e(it.message, it) }.getOrDefault(false)
         _uiState.value = _uiState.value.copy(isExporting = false)
         onDone(status)
     }
 
-    fun exportToBoxyFile(password: String, onDone: (Boolean) -> Unit) = viewModelScope.launch {
+    fun exportToEncryptedFile(password: String, onDone: (Boolean) -> Unit) = viewModelScope.launch {
         if (_uiState.value.isExporting) return@launch
         val tokens = (_uiState.value.tokensState as? DataLoadState.Data)?.value ?: return@launch
         _uiState.value = _uiState.value.copy(isExporting = true)

@@ -167,8 +167,8 @@ fun RootNavigation(
                 showPlainTextWarningDialog = { exportViewModel.showPlainTextWarningDialog(it) },
                 showSetPasswordDialog = { exportViewModel.showSetPasswordDialog(it) },
                 exportToPlainTextFile = { exportViewModel.exportToPlainTextFile(it) },
-                exportToBoxyFile = { password, onDone ->
-                    exportViewModel.exportToBoxyFile(password, onDone)
+                exportToEncryptedFile = { password, onDone ->
+                    exportViewModel.exportToEncryptedFile(password, onDone)
                 },
                 retryLoad = exportViewModel::loadAllTokens,
                 onNavigateUp = { navController.navigateUp() }

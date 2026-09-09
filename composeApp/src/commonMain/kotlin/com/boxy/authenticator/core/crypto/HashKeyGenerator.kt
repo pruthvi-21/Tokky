@@ -6,6 +6,7 @@ object HashKeyGenerator {
     suspend fun generateHashKey(
         password: ByteArray,
         salt: ByteArray = ByteArray(32),
+        hashSize: Int = 32,
     ): ByteArray {
         val kdf = Argon2(
             version = Argon2.Version.V13,
@@ -13,7 +14,7 @@ object HashKeyGenerator {
             iterations = 3,
             memory = 65536,
             parallelism = 2,
-            hashSize = 32 // (256-bit)
+            hashSize = hashSize,
         )
         return kdf.deriveKey(password, salt)
     }

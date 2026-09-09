@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import boxy_authenticator.composeapp.generated.resources.Res
-import boxy_authenticator.composeapp.generated.resources.boxy_file
+import boxy_authenticator.composeapp.generated.resources.encrypted_backup_file
 import boxy_authenticator.composeapp.generated.resources.cancel
 import boxy_authenticator.composeapp.generated.resources.duplicate_warning_message
 import boxy_authenticator.composeapp.generated.resources.enter_password_to_decrypt
@@ -55,6 +55,7 @@ import boxy_authenticator.composeapp.generated.resources.import_from
 import boxy_authenticator.composeapp.generated.resources.import_label
 import boxy_authenticator.composeapp.generated.resources.loading_file
 import boxy_authenticator.composeapp.generated.resources.plain_text_file
+import boxy_authenticator.composeapp.generated.resources.aegis_backup_file
 import boxy_authenticator.composeapp.generated.resources.proceed
 import boxy_authenticator.composeapp.generated.resources.retry
 import boxy_authenticator.composeapp.generated.resources.rename
@@ -127,16 +128,25 @@ fun ImportTokensScreen(navController: NavController) {
                                 title = { Text(stringResource(Res.string.import_from)) }
                             ) {
                                 Preference(
-                                    title = { Text(stringResource(Res.string.boxy_file) + " (.boxy)") },
+                                    title = {
+                                        Text(stringResource(Res.string.encrypted_backup_file) + " (.encrypted)")
+                                    },
                                     onClick = {
-                                        importTokensViewModel.pickFile(isEncrypted = true)
+                                        importTokensViewModel.pickFile(ImportTokensViewModel.ImportFormat.ENCRYPTED_BACKUP)
                                         snackbarHostState.currentSnackbarData?.dismiss()
                                     },
                                 )
                                 Preference(
                                     title = { Text(stringResource(Res.string.plain_text_file) + " (.txt)") },
                                     onClick = {
-                                        importTokensViewModel.pickFile(isEncrypted = false)
+                                        importTokensViewModel.pickFile(ImportTokensViewModel.ImportFormat.PLAIN_TEXT)
+                                        snackbarHostState.currentSnackbarData?.dismiss()
+                                    },
+                                )
+                                Preference(
+                                    title = { Text(stringResource(Res.string.aegis_backup_file) + " (.json)") },
+                                    onClick = {
+                                        importTokensViewModel.pickFile(ImportTokensViewModel.ImportFormat.AEGIS)
                                         snackbarHostState.currentSnackbarData?.dismiss()
                                     },
                                     showDivider = false,
@@ -186,7 +196,7 @@ fun ImportTokensScreen(navController: NavController) {
                             importTokensViewModel.showDuplicateWarningDialog.value = false
                         },
                         onConfirmRequest = {
-                            importTokensViewModel.importAccounts(tokensToImport) { success ->
+                            importTokensViewModel.importAccounts { success ->
                                 importTokensViewModel.showDuplicateWarningDialog.value = false
                                 if (success) navController.navigateUp()
                             }
@@ -208,7 +218,7 @@ fun ImportTokensScreen(navController: NavController) {
                             if (tokensToImport.any { it.isDuplicate }) {
                                 importTokensViewModel.showDuplicateWarningDialog.value = true
                             } else {
-                                importTokensViewModel.importAccounts(tokensToImport) { success ->
+                                importTokensViewModel.importAccounts { success ->
                                     importTokensViewModel.showDuplicateWarningDialog.value = false
                                     if (success) navController.navigateUp()
                                 }
@@ -236,7 +246,7 @@ fun ImportTokensScreen(navController: NavController) {
                             importTokensViewModel.setInitialState()
                         },
                         onConfirmation = {
-                            importTokensViewModel.decodeEncryptedContent(uiState.file, it)
+                            importTokensViewModel.decodeEncryptedContent(uiState.file, it, uiState.format)
                         }
                     )
                 }
@@ -255,7 +265,7 @@ private fun DuplicateTokensWarningDialog(
 ) {
     if (showDialog) {
         val duplicateCount = tokensToImport.count { it.isDuplicate }
-        val nonDuplicateCount = tokensToImport.size - duplicateCount
+        val nonDuplicateCount = tokensToImport.count { it.isChecked && !it.isDuplicate }
 
         BoxyDialog(
             dialogTitle = stringResource(Res.string.warning),

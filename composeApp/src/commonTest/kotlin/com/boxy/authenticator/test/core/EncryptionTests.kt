@@ -1,7 +1,7 @@
 package com.boxy.authenticator.test.core
 
 import com.boxy.authenticator.core.crypto.Crypto
-import kotlinx.coroutines.runBlocking
+import com.boxy.authenticator.core.crypto.CryptoKeyDeriver
 import kotlinx.coroutines.test.runTest
 import kotlin.experimental.xor
 import kotlin.test.Test
@@ -14,11 +14,24 @@ class EncryptionTests {
 
     private val password = "a_secure_password"
 
+    private val testKeyDeriver: CryptoKeyDeriver = { passwordBytes, salt, size ->
+        ByteArray(size) { index ->
+            (passwordBytes[index % passwordBytes.size].toInt() xor
+                    salt[index % salt.size].toInt() xor index).toByte()
+        }
+    }
+
+    private suspend fun encrypt(password: String, data: String): ByteArray =
+        Crypto.encrypt(password, data, testKeyDeriver)
+
+    private suspend fun decrypt(password: String, data: ByteArray): String =
+        Crypto.decrypt(password, data, testKeyDeriver)
+
     @Test
-    fun testEncryptionNotEmpty() = runBlocking {
+    fun testEncryptionNotEmpty() = runTest {
         val data = "Some data to encrypt"
 
-        val encryptedData = Crypto.encrypt(password, data)
+        val encryptedData = encrypt(password, data)
         assertTrue(encryptedData.isNotEmpty(), "Encrypted data should not be empty.")
     }
 
@@ -26,8 +39,8 @@ class EncryptionTests {
     fun testEncryptionAndDecryption() = runTest {
         val originalData = "Some data to encrypt"
 
-        val encryptedData = Crypto.encrypt(password, originalData)
-        val decryptedData = Crypto.decrypt(password, encryptedData)
+        val encryptedData = encrypt(password, originalData)
+        val decryptedData = decrypt(password, encryptedData)
 
         assertEquals(originalData, decryptedData, "Decrypted data should match the original.")
     }
@@ -36,8 +49,8 @@ class EncryptionTests {
     fun testEmptyEncryptionAndDecryption() = runTest {
         val inputData = ""
 
-        val encryptedData = Crypto.encrypt(password, inputData)
-        val decryptedData = Crypto.decrypt(password, encryptedData)
+        val encryptedData = encrypt(password, inputData)
+        val decryptedData = decrypt(password, encryptedData)
 
         assertEquals(
             inputData,
@@ -50,7 +63,7 @@ class EncryptionTests {
     fun testEncryptionOfEmptyInput() = runTest {
         val data = ""
 
-        val encryptedData = Crypto.encrypt(password, data)
+        val encryptedData = encrypt(password, data)
         assertTrue(
             encryptedData.isNotEmpty(),
             "Encrypted data for an empty string should not be empty."
@@ -61,8 +74,8 @@ class EncryptionTests {
     fun testEncryptionShouldProducesDifferentOutputsForSameInput() = runTest {
         val data = "Some sensitive information"
 
-        val encryptedData1 = Crypto.encrypt(password, data)
-        val encryptedData2 = Crypto.encrypt(password, data)
+        val encryptedData1 = encrypt(password, data)
+        val encryptedData2 = encrypt(password, data)
 
         assertNotEquals(
             encryptedData1,
@@ -72,37 +85,33 @@ class EncryptionTests {
     }
 
     @Test
-    fun testDecryptionWithWrongKeyProducesGibberish() = runTest {
+    fun testDecryptionWithWrongKeyFails() = runTest {
         val data = "This should not decrypt correctly"
 
-        val encryptedData = Crypto.encrypt(password, data)
-        val decryptedData = Crypto.decrypt("a_wrong_password", encryptedData)
-
-        assertNotEquals(
-            data,
-            decryptedData,
-            "Decryption with wrong key should not return original text."
-        )
+        val encryptedData = encrypt(password, data)
+        assertFailsWith<IllegalArgumentException> {
+            decrypt("a_wrong_password", encryptedData)
+        }
     }
 
     @Test
     fun testDecryptionOfTamperedCiphertextFails() = runTest {
         val data = "Tamper test"
 
-        val encryptedData = Crypto.encrypt(password, data)
+        val encryptedData = encrypt(password, data)
         // Flip a byte
         val tamperedData = encryptedData.copyOf().apply { this[25] = (this[25] xor 0xFF.toByte()) }
-        val decryptedData = Crypto.decrypt(password, tamperedData)
-
-        assertNotEquals(data, decryptedData, "Decryption of tampered ciphertext should fail")
+        assertFailsWith<IllegalArgumentException> {
+            decrypt(password, tamperedData)
+        }
     }
 
     @Test
     fun testEncryptionOfLargeData() = runTest {
         val largeData = "A".repeat(1_000_000)
 
-        val encryptedData = Crypto.encrypt(password, largeData)
-        val decryptedData = Crypto.decrypt(password, encryptedData)
+        val encryptedData = encrypt(password, largeData)
+        val decryptedData = decrypt(password, encryptedData)
 
         assertEquals(largeData, decryptedData, "Decryption of large data should be accurate")
     }
@@ -112,7 +121,16 @@ class EncryptionTests {
         val invalidData = ByteArray(10) { it.toByte() }
 
         assertFailsWith<Exception> {
-            Crypto.decrypt(password, invalidData)
+            decrypt(password, invalidData)
+        }
+    }
+
+    @Test
+    fun testUnversionedCiphertextIsRejected() = runTest {
+        val oldOrUnknownData = ByteArray(128) { it.toByte() }
+
+        assertFailsWith<IllegalArgumentException> {
+            decrypt(password, oldOrUnknownData)
         }
     }
 
@@ -120,8 +138,8 @@ class EncryptionTests {
     fun testNoncePrependingWorks() = runTest {
         val data = "Nonce test"
 
-        val encryptedData = Crypto.encrypt(password, data)
+        val encryptedData = encrypt(password, data)
 
-        assertTrue(encryptedData.size > 24, "Encrypted data should be longer than nonce size")
+        assertTrue(encryptedData.size > 24, "Encrypted data should contain a header, nonce, and MAC")
     }
 }

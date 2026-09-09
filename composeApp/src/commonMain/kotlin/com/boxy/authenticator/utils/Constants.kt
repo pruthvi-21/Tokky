@@ -10,7 +10,9 @@ object Constants {
     )
 
     const val THUMBNAIL_ICON_PATH = "drawable"
-    const val EXPORT_FILE_NAME_PREFIX = "boxy_accounts_"
-    const val EXPORT_FILE_EXTENSION = "txt"
-    const val EXPORT_ENCRYPTED_FILE_EXTENSION = "boxy"
+    const val EXPORT_FILE_NAME_PREFIX = "authenticator_backup_"
+    const val EXPORT_PLAIN_FILE_EXTENSION = "txt"
+    const val EXPORT_ENCRYPTED_FILE_EXTENSION = "encrypted"
+    const val MAX_IMPORT_FILE_BYTES = 10L * 1024 * 1024
+    const val MAX_IMPORT_TOKENS = 10_000
 }
