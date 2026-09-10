@@ -1,0 +1,15 @@
+CREATE TABLE label_entity (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    createdOn INTEGER NOT NULL
+);
+
+CREATE TABLE token_label (
+    tokenId TEXT NOT NULL,
+    labelId INTEGER NOT NULL,
+    PRIMARY KEY (tokenId, labelId),
+    FOREIGN KEY (tokenId) REFERENCES token_entry(id) ON DELETE CASCADE,
+    FOREIGN KEY (labelId) REFERENCES label_entity(id) ON DELETE CASCADE
+);
+
+CREATE INDEX token_label_label_idx ON token_label(labelId, tokenId);

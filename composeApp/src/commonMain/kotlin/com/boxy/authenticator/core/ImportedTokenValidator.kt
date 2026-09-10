@@ -35,6 +35,7 @@ object ImportedTokenValidator {
         if (token.thumbnail is Thumbnail.Color) {
             require(VALID_COLOR.matches(token.thumbnail.color)) { "Invalid thumbnail color." }
         }
-        return token
+        val normalizedLabels = TokenLabels.normalize(token.labels)
+        return if (normalizedLabels == token.labels) token else token.copy(labels = normalizedLabels)
     }
 }

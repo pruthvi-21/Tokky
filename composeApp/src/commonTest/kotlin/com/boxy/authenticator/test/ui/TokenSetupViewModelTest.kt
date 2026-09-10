@@ -10,6 +10,7 @@ import com.boxy.authenticator.domain.models.otp.SteamInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo
 import com.boxy.authenticator.domain.usecases.DeleteTokenUseCase
 import com.boxy.authenticator.domain.usecases.FetchTokenByIdUseCase
+import com.boxy.authenticator.domain.usecases.FetchLabelsUseCase
 import com.boxy.authenticator.domain.usecases.InsertTokenUseCase
 import com.boxy.authenticator.domain.usecases.ReplaceExistingTokenUseCase
 import com.boxy.authenticator.domain.usecases.UpdateTokenUseCase
@@ -19,17 +20,27 @@ import com.boxy.authenticator.test.testToken
 import com.boxy.authenticator.ui.state.DataLoadState
 import com.boxy.authenticator.ui.viewmodels.TokenSetupViewModel
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TokenSetupViewModelTest {
     @Test
     fun `TOTP token populates edit form and period visibility`() {
         val viewModel = viewModel()
-        val token = testToken(otpInfo = TotpInfo(byteArrayOf(1, 2), "SHA256", 8, 45L))
+        val token = testToken(
+            otpInfo = TotpInfo(byteArrayOf(1, 2), "SHA256", 8, 45L),
+            labels = setOf("Work", "Privileged"),
+        )
 
         viewModel.setStateFromToken(token, TokenSetupMode.UPDATE)
         val state = viewModel.uiState.value
@@ -40,6 +51,7 @@ class TokenSetupViewModelTest {
         assertEquals("SHA256", state.algorithm)
         assertEquals("8", state.digits)
         assertEquals("45", state.period)
+        assertEquals(token.labels, state.labels)
         assertTrue(state.isPeriodFieldVisible)
         assertFalse(state.isCounterFieldVisible)
         assertTrue(state.isInEditMode)
@@ -84,6 +96,41 @@ class TokenSetupViewModelTest {
     }
 
     @Test
+    fun `available labels can be selected and new labels are added case-insensitively`() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        try {
+            val repository = RecordingTokenRepository(
+                listOf(
+                    testToken(id = "one", labels = setOf("Work")),
+                    testToken(id = "two", labels = setOf("Personal")),
+                )
+            )
+            val viewModel = viewModel(repository)
+            viewModel.setStateFromToken(repository.tokens.first(), TokenSetupMode.UPDATE)
+            viewModel.loadAvailableLabels()
+            advanceUntilIdle()
+
+            assertEquals(setOf("Work", "Personal"), viewModel.uiState.value.availableLabels)
+
+            viewModel.onEvent(TokenFormEvent.LabelToggled("Personal"))
+            assertEquals(setOf("Work", "Personal"), viewModel.uiState.value.labels)
+
+            viewModel.onEvent(TokenFormEvent.LabelToggled("WORK"))
+            assertEquals(setOf("Personal"), viewModel.uiState.value.labels)
+
+            viewModel.onEvent(TokenFormEvent.NewLabelChanged(" work "))
+            viewModel.onEvent(TokenFormEvent.AddLabel)
+            assertEquals(setOf("Personal", "Work"), viewModel.uiState.value.labels)
+            assertEquals(setOf("Work", "Personal"), viewModel.uiState.value.availableLabels)
+            assertEquals("", viewModel.uiState.value.newLabel)
+            assertFalse(viewModel.uiState.value.showAddLabelDialog)
+            assertTrue(viewModel.isFormUpdated())
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun `invalid auth URL produces an explicit edit error`() {
         val viewModel = viewModel()
 
@@ -108,17 +155,37 @@ class TokenSetupViewModelTest {
     }
 
     @Test
+    fun `archive marks the loaded token without deleting it`() = runTest {
+        val token = testToken()
+        val repository = RecordingTokenRepository(listOf(token))
+        val viewModel = viewModel(repository)
+        viewModel.setStateFromToken(token, TokenSetupMode.UPDATE)
+
+        assertTrue(viewModel.toggleArchiveToken())
+
+        assertEquals(1, repository.tokens.size)
+        assertTrue(repository.tokens.single().isArchived)
+        assertFalse(viewModel.uiState.value.isSaving)
+
+        viewModel.setStateFromToken(repository.tokens.single(), TokenSetupMode.UPDATE)
+        assertTrue(viewModel.toggleArchiveToken())
+        assertFalse(repository.tokens.single().isArchived)
+    }
+
+    @Test
     fun `dialog state setters do not mutate form content`() {
         val viewModel = viewModel()
         val initialIssuer = viewModel.uiState.value.issuer
 
         viewModel.showBackPressDialog(true)
         viewModel.showDeleteTokenDialog(true)
+        viewModel.showArchiveTokenDialog(true)
         viewModel.showDuplicateTokenDialog(TokenSetupViewModel.DuplicateTokenDialogArgs(true))
 
         val state = viewModel.uiState.value
         assertTrue(state.showBackPressDialog)
         assertTrue(state.showDeleteTokenDialog)
+        assertTrue(state.showArchiveTokenDialog)
         assertTrue(state.showDuplicateTokenDialog.show)
         assertEquals(initialIssuer, state.issuer)
     }
@@ -128,6 +195,7 @@ class TokenSetupViewModelTest {
     ) = TokenSetupViewModel(
         settings = SettingsDataStore(InMemoryPreferenceStore()),
         fetchTokenByIdUseCase = FetchTokenByIdUseCase(repository),
+        fetchLabelsUseCase = FetchLabelsUseCase(repository),
         insertTokenUseCase = InsertTokenUseCase(repository),
         updateTokenUseCase = UpdateTokenUseCase(repository),
         deleteTokenUseCase = DeleteTokenUseCase(repository),

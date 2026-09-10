@@ -7,14 +7,20 @@ import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.double_tap
 import boxy_authenticator.composeapp.generated.resources.long_press
 import boxy_authenticator.composeapp.generated.resources.never
+import boxy_authenticator.composeapp.generated.resources.always
+import boxy_authenticator.composeapp.generated.resources.only_when_expanded
 import boxy_authenticator.composeapp.generated.resources.preference_category_title_general
 import boxy_authenticator.composeapp.generated.resources.preference_summary_disable_backup_alerts
 import boxy_authenticator.composeapp.generated.resources.preference_summary_use_pin
 import boxy_authenticator.composeapp.generated.resources.preference_title_disable_backup_alerts
 import boxy_authenticator.composeapp.generated.resources.preference_title_token_tap_response
+import boxy_authenticator.composeapp.generated.resources.preference_title_label_visibility
+import boxy_authenticator.composeapp.generated.resources.preference_title_show_label_counts
+import boxy_authenticator.composeapp.generated.resources.preference_summary_show_label_counts
 import boxy_authenticator.composeapp.generated.resources.preference_title_use_pin
 import boxy_authenticator.composeapp.generated.resources.single_tap
 import com.boxy.authenticator.domain.models.enums.TokenTapResponse
+import com.boxy.authenticator.domain.models.enums.LabelVisibility
 import com.boxy.authenticator.domain.models.form.SettingChangeEvent
 import com.boxy.authenticator.ui.state.SettingsUiState
 import com.jw.preferences.DropDownPreference
@@ -36,6 +42,12 @@ fun GeneralSettings(
         stringResource(Res.string.single_tap),
         stringResource(Res.string.double_tap),
         stringResource(Res.string.long_press),
+    )
+    val labelVisibility = uiState.settings.labelVisibility
+    val labelVisibilityLabels = listOf(
+        stringResource(Res.string.never),
+        stringResource(Res.string.only_when_expanded),
+        stringResource(Res.string.always),
     )
 
     PreferenceCategory(
@@ -60,6 +72,31 @@ fun GeneralSettings(
                 }
                 onEvent(SettingChangeEvent.TokenTapResponseChanged(theme))
             },
+        )
+        DropDownPreference(
+            title = { Text(stringResource(Res.string.preference_title_label_visibility)) },
+            value = labelVisibilityLabels[labelVisibility.ordinal],
+            entries = labelVisibilityLabels,
+            summary = {
+                Text(
+                    text = labelVisibilityLabels[labelVisibility.ordinal],
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            },
+            onValueChange = {
+                val visibility = when (it) {
+                    labelVisibilityLabels[1] -> LabelVisibility.WHEN_EXPANDED
+                    labelVisibilityLabels[2] -> LabelVisibility.ALWAYS
+                    else -> LabelVisibility.NEVER
+                }
+                onEvent(SettingChangeEvent.LabelVisibilityChanged(visibility))
+            },
+        )
+        SwitchPreference(
+            title = { Text(stringResource(Res.string.preference_title_show_label_counts)) },
+            summary = { Text(stringResource(Res.string.preference_summary_show_label_counts)) },
+            value = uiState.settings.isShowLabelCountsEnabled,
+            onValueChange = { onEvent(SettingChangeEvent.ShowLabelCountsChanged(it)) },
         )
         SwitchPreference(
             title = { Text(stringResource(Res.string.preference_title_use_pin)) },

@@ -17,11 +17,13 @@ import com.boxy.authenticator.ui.screens.HomeScreen
 import com.boxy.authenticator.ui.screens.ImportTokensScreen
 import com.boxy.authenticator.ui.screens.QrScannerScreen
 import com.boxy.authenticator.ui.screens.SettingsScreen
+import com.boxy.authenticator.ui.screens.ManageLabelsScreen
 import com.boxy.authenticator.ui.screens.TokenSetupScreen
 import com.boxy.authenticator.ui.viewmodels.AuthenticationViewModel
 import com.boxy.authenticator.ui.viewmodels.ExportTokensViewModel
 import com.boxy.authenticator.ui.viewmodels.HomeViewModel
 import com.boxy.authenticator.ui.viewmodels.SettingsViewModel
+import com.boxy.authenticator.ui.viewmodels.ManageLabelsViewModel
 import com.boxy.authenticator.ui.viewmodels.TokenSetupViewModel
 import io.ktor.http.decodeURLQueryComponent
 import org.koin.compose.koinInject
@@ -84,6 +86,7 @@ fun RootNavigation(
             val homeViewModel: HomeViewModel = koinViewModel()
 
             val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+            val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
 
             HomeScreen(
                 uiState = uiState,
@@ -92,10 +95,33 @@ fun RootNavigation(
                 onTokenViewed = homeViewModel::markTokenViewed,
                 onUpdateHotpCounter = homeViewModel::updateHotpCounter,
                 onDismissSnackbar = { homeViewModel.dismissSnackbar() },
+                onTokenLongPressed = homeViewModel::selectToken,
+                onTokenSelectionToggle = homeViewModel::toggleTokenSelection,
+                onClearSelection = homeViewModel::clearSelection,
+                onShowApplyLabelsDialog = homeViewModel::showApplyLabelsDialog,
+                onToggleLabelToApply = homeViewModel::toggleLabelToApply,
+                onApplyLabelsToSelection = homeViewModel::applyLabelsToSelection,
+                onShowArchiveSelectionDialog = homeViewModel::showArchiveSelectionDialog,
+                onArchiveOrRestoreSelection = homeViewModel::archiveOrRestoreSelection,
+                onShowDeleteSelectionDialog = homeViewModel::showDeleteSelectionDialog,
+                onDeleteSelection = homeViewModel::deleteSelection,
+                onClearSelectionError = homeViewModel::clearSelectionError,
+                onLabelFilterToggle = homeViewModel::toggleLabelFilter,
+                onDefaultLabelRequested = homeViewModel::requestDefaultLabel,
+                onDefaultLabelDismissed = homeViewModel::dismissDefaultLabelDialog,
+                onDefaultLabelConfirmed = homeViewModel::confirmDefaultLabel,
+                onArchivedFilterToggle = homeViewModel::toggleArchivedFilter,
+                onDefaultArchivedRequested = homeViewModel::requestDefaultArchived,
+                labelVisibility = settingsUiState.settings.labelVisibility,
+                showLabelCounts = settingsUiState.settings.isShowLabelCountsEnabled,
                 onNavigateToSettings = { navController.navigate(Screen.Settings) },
+                onNavigateToManageLabels = { navController.navigate(Screen.ManageLabels) },
                 onNavigateToQrScan = { navController.navigate(Screen.QrScanner) },
                 onNavigateToNewTokenSetup = { navController.navigate(Screen.TokenSetup()) },
-                onNavigateToEditToken = { navController.navigate(Screen.TokenSetup(tokenId = it)) }
+                onNavigateToEditToken = {
+                    homeViewModel.clearSelection()
+                    navController.navigate(Screen.TokenSetup(tokenId = it))
+                }
             )
         }
 
@@ -177,6 +203,22 @@ fun RootNavigation(
 
         composable<Screen.ImportTokens> {
             ImportTokensScreen(navController)
+        }
+
+        composable<Screen.ManageLabels> {
+            val viewModel: ManageLabelsViewModel = koinViewModel()
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            ManageLabelsScreen(
+                uiState = uiState,
+                loadLabels = viewModel::loadLabels,
+                showRenameDialog = viewModel::showRenameDialog,
+                updateEditedName = viewModel::updateEditedName,
+                renameLabel = viewModel::renameLabel,
+                showDeleteDialog = viewModel::showDeleteDialog,
+                deleteLabel = viewModel::deleteLabel,
+                clearOperationError = viewModel::clearOperationError,
+                navigateUp = navController::navigateUp,
+            )
         }
     }
 }

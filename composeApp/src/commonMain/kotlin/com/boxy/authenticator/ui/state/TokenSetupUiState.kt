@@ -16,6 +16,10 @@ data class TokenSetupUiState(
     val operationError: String? = null,
     val issuer: String = "",
     val label: String = "",
+    val labels: Set<String> = emptySet(),
+    val availableLabels: Set<String> = emptySet(),
+    val newLabel: String = "",
+    val isArchived: Boolean = false,
     val secretKey: String = "",
     val type: OTPType = OTPType.TOTP,
     val thumbnail: Thumbnail = Thumbnail.Color(THUMBNAIL_COlORS.random()),
@@ -35,5 +39,7 @@ data class TokenSetupUiState(
 
     val showBackPressDialog: Boolean = false,
     val showDeleteTokenDialog: Boolean = false,
+    val showArchiveTokenDialog: Boolean = false,
+    val showAddLabelDialog: Boolean = false,
     val showDuplicateTokenDialog: DuplicateTokenDialogArgs = DuplicateTokenDialogArgs(false),
 )

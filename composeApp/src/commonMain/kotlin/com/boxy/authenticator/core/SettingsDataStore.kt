@@ -2,6 +2,7 @@ package com.boxy.authenticator.core
 
 import com.boxy.authenticator.data.preferences.PreferenceStore
 import com.boxy.authenticator.domain.models.enums.AppTheme
+import com.boxy.authenticator.domain.models.enums.LabelVisibility
 import com.boxy.authenticator.domain.models.enums.TokenTapResponse
 import com.boxy.authenticator.domain.models.AppSettings
 
@@ -16,6 +17,8 @@ class SettingsDataStore(
 
             // General
             tokenTapResponse = getTokenTapResponse(),
+            labelVisibility = getLabelVisibility(),
+            isShowLabelCountsEnabled = isShowLabelCountsEnabled(),
             isLockscreenPinPadEnabled = isLockscreenPinPadEnabled(),
             isDisableBackupAlertsEnabled = isDisableBackupAlertsEnabled(),
 
@@ -77,6 +80,38 @@ class SettingsDataStore(
             TokenTapResponse.valueOf(themeName ?: Defaults.TOKEN_TAP_RESPONSE.name)
         } catch (e: IllegalArgumentException) {
             Defaults.TOKEN_TAP_RESPONSE
+        }
+    }
+
+    fun setLabelVisibility(visibility: LabelVisibility) {
+        store.putString(Keys.LABEL_VISIBILITY, visibility.name)
+    }
+
+    fun getLabelVisibility(): LabelVisibility {
+        val visibilityName = store.getString(Keys.LABEL_VISIBILITY)
+        return try {
+            LabelVisibility.valueOf(visibilityName ?: Defaults.LABEL_VISIBILITY.name)
+        } catch (_: IllegalArgumentException) {
+            Defaults.LABEL_VISIBILITY
+        }
+    }
+
+    fun setDefaultLabelFilter(label: String?) {
+        if (label == null) store.remove(Keys.DEFAULT_LABEL_FILTER)
+        else store.putString(Keys.DEFAULT_LABEL_FILTER, label)
+    }
+
+    fun getDefaultLabelFilter(): String? = store.getString(Keys.DEFAULT_LABEL_FILTER)
+
+    fun setShowLabelCountsEnabled(enabled: Boolean) {
+        store.putBoolean(Keys.SHOW_LABEL_COUNTS, enabled)
+    }
+
+    fun isShowLabelCountsEnabled(default: Boolean = Defaults.SHOW_LABEL_COUNTS): Boolean {
+        return try {
+            store.getBoolean(Keys.SHOW_LABEL_COUNTS, default)
+        } catch (_: Exception) {
+            default
         }
     }
 
@@ -171,6 +206,9 @@ class SettingsDataStore(
 
             // General
             const val TOKEN_TAP_RESPONSE = "key_token_tap_response"
+            const val LABEL_VISIBILITY = "key_label_visibility"
+            const val DEFAULT_LABEL_FILTER = "key_default_label_filter"
+            const val SHOW_LABEL_COUNTS = "key_show_label_counts"
             const val LOCKSCREEN_PIN_PAD = "key_lockscreen_pin_pad"
             const val DISABLE_BACKUP_ALERTS = "key_disable_backup_alerts"
 
@@ -192,6 +230,8 @@ class SettingsDataStore(
 
             // General
             val TOKEN_TAP_RESPONSE = TokenTapResponse.NEVER
+            val LABEL_VISIBILITY = LabelVisibility.ALWAYS
+            const val SHOW_LABEL_COUNTS = false
             const val LOCKSCREEN_PIN_PAD = false
             const val DISABLE_BACKUP_ALERTS = false
 

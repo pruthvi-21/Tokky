@@ -3,6 +3,7 @@ package com.boxy.authenticator.test.ui
 import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.domain.models.enums.AppTheme
 import com.boxy.authenticator.domain.models.enums.TokenTapResponse
+import com.boxy.authenticator.domain.models.enums.LabelVisibility
 import com.boxy.authenticator.domain.models.form.SettingChangeEvent
 import com.boxy.authenticator.test.InMemoryPreferenceStore
 import com.boxy.authenticator.ui.viewmodels.SettingsViewModel
@@ -18,6 +19,7 @@ class SettingsViewModelTest {
         val settings = SettingsDataStore(store).apply {
             setAppTheme(AppTheme.DARK)
             setTokenTapResponse(TokenTapResponse.LONG_PRESS)
+            setLabelVisibility(LabelVisibility.NEVER)
             setBlockScreenshotsEnabled(false)
         }
 
@@ -25,6 +27,7 @@ class SettingsViewModelTest {
 
         assertEquals(AppTheme.DARK, state.appTheme)
         assertEquals(TokenTapResponse.LONG_PRESS, state.tokenTapResponse)
+        assertEquals(LabelVisibility.NEVER, state.labelVisibility)
         assertFalse(state.isBlockScreenshotsEnabled)
     }
 
@@ -36,6 +39,8 @@ class SettingsViewModelTest {
 
         viewModel.onEvent(SettingChangeEvent.AppThemeChanged(AppTheme.LIGHT))
         viewModel.onEvent(SettingChangeEvent.TokenTapResponseChanged(TokenTapResponse.SINGLE_TAP))
+        viewModel.onEvent(SettingChangeEvent.LabelVisibilityChanged(LabelVisibility.WHEN_EXPANDED))
+        viewModel.onEvent(SettingChangeEvent.ShowLabelCountsChanged(true))
         viewModel.onEvent(SettingChangeEvent.LockScreenPinPadChanged(true))
         viewModel.onEvent(SettingChangeEvent.BackupAlertsChanged(true))
         viewModel.onEvent(SettingChangeEvent.BiometricUnlockChanged(true))
@@ -45,6 +50,8 @@ class SettingsViewModelTest {
         assertEquals(viewModel.uiState.value.settings, settings.getSettings())
         assertEquals(AppTheme.LIGHT, settings.getAppTheme())
         assertEquals(TokenTapResponse.SINGLE_TAP, settings.getTokenTapResponse())
+        assertEquals(LabelVisibility.WHEN_EXPANDED, settings.getLabelVisibility())
+        assertTrue(settings.isShowLabelCountsEnabled())
         assertTrue(settings.isLockscreenPinPadEnabled())
         assertTrue(settings.isDisableBackupAlertsEnabled())
         assertTrue(settings.isBiometricUnlockEnabled())

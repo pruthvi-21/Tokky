@@ -3,6 +3,7 @@ package com.boxy.authenticator.test
 import com.boxy.authenticator.data.preferences.PreferenceStore
 import com.boxy.authenticator.domain.models.Thumbnail
 import com.boxy.authenticator.domain.models.TokenEntry
+import com.boxy.authenticator.domain.models.LabelSummary
 import com.boxy.authenticator.domain.models.enums.AccountEntryMethod
 import com.boxy.authenticator.domain.models.otp.OtpInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo
@@ -109,10 +110,23 @@ internal class RecordingTokenRepository(
         tokens.removeAll { it.id == tokenId }
     }
 
+    override suspend fun deleteTokens(tokenIds: Set<String>) {
+        failIfConfigured()
+        tokens.removeAll { it.id in tokenIds }
+    }
+
     override suspend fun updateToken(token: TokenEntry) {
         failIfConfigured()
         val index = tokens.indexOfFirst { it.id == token.id }
         if (index >= 0) tokens[index] = token
+    }
+
+    override suspend fun updateTokens(tokens: List<TokenEntry>) {
+        failIfConfigured()
+        val updatesById = tokens.associateBy { it.id }
+        this.tokens.indices.forEach { index ->
+            updatesById[this.tokens[index].id]?.let { this.tokens[index] = it }
+        }
     }
 
     override suspend fun replaceTokenWith(id: String, token: TokenEntry) {
@@ -126,6 +140,42 @@ internal class RecordingTokenRepository(
         failIfConfigured()
         lastHotpUpdate = tokenId to counter
     }
+
+    override suspend fun getLabels(): List<LabelSummary> {
+        failIfConfigured()
+        return tokens.flatMap { it.labels }
+            .distinctBy { it.lowercase() }
+            .map { name ->
+                LabelSummary(name, tokens.count { token ->
+                    token.labels.any { it.equals(name, ignoreCase = true) }
+                }.toLong())
+            }
+            .sortedBy { it.name.lowercase() }
+    }
+
+    override suspend fun renameLabel(oldName: String, newName: String) {
+        failIfConfigured()
+        tokens.indices.forEach { index ->
+            val token = tokens[index]
+            if (token.labels.any { it.equals(oldName, ignoreCase = true) }) {
+                tokens[index] = token.copy(
+                    labels = (token.labels.filterNot { it.equals(oldName, ignoreCase = true) } + newName)
+                        .distinctBy { it.lowercase() }
+                        .toSet(),
+                )
+            }
+        }
+    }
+
+    override suspend fun deleteLabel(name: String) {
+        failIfConfigured()
+        tokens.indices.forEach { index ->
+            val token = tokens[index]
+            tokens[index] = token.copy(
+                labels = token.labels.filterNot { it.equals(name, ignoreCase = true) }.toSet(),
+            )
+        }
+    }
 }
 
 internal fun testToken(
@@ -133,6 +183,7 @@ internal fun testToken(
     issuer: String = "Example",
     label: String = "person@example.com",
     otpInfo: OtpInfo = TotpInfo("hello world".encodeToByteArray()),
+    labels: Set<String> = emptySet(),
 ) = TokenEntry(
     id = id,
     issuer = issuer,
@@ -142,4 +193,5 @@ internal fun testToken(
     createdOn = 1_000L,
     updatedOn = 2_000L,
     addedFrom = AccountEntryMethod.FORM,
+    labels = labels,
 )

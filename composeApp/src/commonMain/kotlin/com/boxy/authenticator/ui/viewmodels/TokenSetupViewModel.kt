@@ -10,6 +10,7 @@ import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.core.Logger
 import com.boxy.authenticator.core.TokenEntryParser
 import com.boxy.authenticator.core.TokenFormValidator
+import com.boxy.authenticator.core.TokenLabels
 import com.boxy.authenticator.core.encoding.Base32
 import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.models.enums.AccountEntryMethod
@@ -22,6 +23,7 @@ import com.boxy.authenticator.domain.models.otp.SteamInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo
 import com.boxy.authenticator.domain.usecases.DeleteTokenUseCase
 import com.boxy.authenticator.domain.usecases.FetchTokenByIdUseCase
+import com.boxy.authenticator.domain.usecases.FetchLabelsUseCase
 import com.boxy.authenticator.domain.usecases.InsertTokenUseCase
 import com.boxy.authenticator.domain.usecases.ReplaceExistingTokenUseCase
 import com.boxy.authenticator.domain.usecases.UpdateTokenUseCase
@@ -37,6 +39,7 @@ import org.jetbrains.compose.resources.getString
 class TokenSetupViewModel(
     private val settings: SettingsDataStore,
     private val fetchTokenByIdUseCase: FetchTokenByIdUseCase,
+    private val fetchLabelsUseCase: FetchLabelsUseCase,
     private val insertTokenUseCase: InsertTokenUseCase,
     private val updateTokenUseCase: UpdateTokenUseCase,
     private val deleteTokenUseCase: DeleteTokenUseCase,
@@ -68,33 +71,34 @@ class TokenSetupViewModel(
         }
 
         currentToken = token
-        _uiState.value = _uiState.value.copy(
+        val type = when (token.otpInfo) {
+            is HotpInfo -> OTPType.HOTP
+            is SteamInfo -> OTPType.STEAM
+            is TotpInfo -> OTPType.TOTP
+        }
+        val loadedState = _uiState.value.copy(
             issuer = token.issuer,
             label = token.label,
+            labels = token.labels,
+            availableLabels = TokenLabels.normalize(_uiState.value.availableLabels + token.labels),
+            isArchived = token.isArchived,
             thumbnail = token.thumbnail,
             secretKey = Base32.encode(token.otpInfo.secretKey),
             algorithm = token.otpInfo.algorithm,
             digits = token.otpInfo.digits.toString(),
+            type = type,
+            period = (token.otpInfo as? TotpInfo)?.period?.toString() ?: _uiState.value.period,
+            counter = (token.otpInfo as? HotpInfo)?.counter?.toString() ?: _uiState.value.counter,
             isInEditMode = true,
             tokenSetupMode = setupMode,
             editLoadState = DataLoadState.Data(Unit),
+            isAlgorithmFieldVisible = type != OTPType.STEAM,
+            isDigitsFieldVisible = type != OTPType.STEAM,
+            isPeriodFieldVisible = type == OTPType.TOTP,
+            isCounterFieldVisible = type == OTPType.HOTP,
         )
-
-        _uiState.value = when (token.otpInfo) {
-            is HotpInfo -> _uiState.value.copy(
-                type = OTPType.HOTP,
-                counter = token.otpInfo.counter.toString()
-            )
-
-            is SteamInfo -> _uiState.value.copy(type = OTPType.STEAM)
-            is TotpInfo -> _uiState.value.copy(
-                type = OTPType.TOTP,
-                period = token.otpInfo.period.toString()
-            )
-        }
-        updateFieldVisibilityState()
-
-        initialUiState = _uiState.value
+        _uiState.value = loadedState
+        initialUiState = loadedState
     }
 
     fun setStateFromAuthUrl(authUrl: String) {
@@ -124,6 +128,22 @@ class TokenSetupViewModel(
         }
     }
 
+    fun loadAvailableLabels() {
+        viewModelScope.launch {
+            fetchLabelsUseCase()
+                .onSuccess { summaries ->
+                    updateState {
+                        copy(
+                            availableLabels = TokenLabels.normalize(
+                                availableLabels + labels + summaries.map { it.name }
+                            )
+                        )
+                    }
+                }
+                .onFailure { logger.e("Failed to load available labels", it) }
+        }
+    }
+
     fun onEvent(event: TokenFormEvent) {
         if (event !is TokenFormEvent.Submit && _uiState.value.operationError != null) {
             _uiState.value = _uiState.value.copy(operationError = null)
@@ -140,6 +160,41 @@ class TokenSetupViewModel(
 
             is TokenFormEvent.LabelChanged -> {
                 updateState { copy(label = event.label) }
+            }
+
+            is TokenFormEvent.NewLabelChanged -> {
+                updateState {
+                    copy(
+                        newLabel = event.label,
+                        validationErrors = validationErrors - "labels",
+                    )
+                }
+            }
+
+            TokenFormEvent.AddLabel -> addPendingLabel()
+
+            is TokenFormEvent.LabelToggled -> {
+                updateState {
+                    val selected = labels.any { it.equals(event.label, ignoreCase = true) }
+                    copy(
+                        labels = if (selected) {
+                            labels.filterNot { it.equals(event.label, ignoreCase = true) }.toSet()
+                        } else {
+                            TokenLabels.normalize(labels + event.label)
+                        }
+                    )
+                }
+            }
+
+            is TokenFormEvent.AddLabelDialogVisibilityChanged -> {
+                updateState {
+                    copy(
+                        showAddLabelDialog = event.visible,
+                        newLabel = if (event.visible) newLabel else "",
+                        validationErrors = if (event.visible) validationErrors
+                        else validationErrors - "labels",
+                    )
+                }
             }
 
             is TokenFormEvent.SecretKeyChanged -> {
@@ -205,6 +260,32 @@ class TokenSetupViewModel(
         _uiState.value = _uiState.value.newState()
     }
 
+    private fun addPendingLabel() {
+        val rawPending = _uiState.value.newLabel
+        if (rawPending.isBlank()) return
+        val pending = _uiState.value.availableLabels.firstOrNull {
+            it.equals(rawPending.trim(), ignoreCase = true)
+        } ?: rawPending
+        runCatching { TokenLabels.normalize(_uiState.value.labels + pending) }
+            .onSuccess { labels ->
+                _uiState.value = _uiState.value.copy(
+                    labels = labels,
+                    availableLabels = TokenLabels.normalize(
+                        _uiState.value.availableLabels + labels
+                    ),
+                    newLabel = "",
+                    showAddLabelDialog = false,
+                    validationErrors = _uiState.value.validationErrors - "labels",
+                )
+            }
+            .onFailure {
+                _uiState.value = _uiState.value.copy(
+                    validationErrors = _uiState.value.validationErrors +
+                            ("labels" to LABEL_ERROR),
+                )
+            }
+    }
+
     private suspend fun handleValidationResult(result: TokenFormValidator.Result): String? {
         return when (result) {
             is TokenFormValidator.Result.Success -> null
@@ -229,6 +310,16 @@ class TokenSetupViewModel(
             )
 
             val state = _uiState.value
+            val tokenLabels = runCatching {
+                TokenLabels.normalize(
+                    state.labels + listOfNotNull(state.newLabel.takeIf(String::isNotBlank))
+                )
+            }.getOrElse {
+                _uiState.value = _uiState.value.copy(
+                    validationErrors = _uiState.value.validationErrors + ("labels" to LABEL_ERROR),
+                )
+                return@launch
+            }
 
             fun buildOtpInfo(): OtpInfo {
                 return when (state.type) {
@@ -283,6 +374,7 @@ class TokenSetupViewModel(
                             thumbnail = state.thumbnail,
                             otpInfo = otpInfo,
                             addedFrom = AccountEntryMethod.FORM,
+                            labels = tokenLabels,
                         )
 
                         if (_uiState.value.tokenSetupMode == TokenSetupMode.URL) {
@@ -298,6 +390,7 @@ class TokenSetupViewModel(
                             label = state.label,
                             thumbnail = state.thumbnail,
                             otpInfo = otpInfo,
+                            labels = tokenLabels,
                         )
                             ?: throw IllegalStateException("No token ID available for update")
 
@@ -379,7 +472,10 @@ class TokenSetupViewModel(
             tokenSetupMode = initialUiState.tokenSetupMode,
             showBackPressDialog = initialUiState.showBackPressDialog,
             showDeleteTokenDialog = initialUiState.showDeleteTokenDialog,
+            showArchiveTokenDialog = initialUiState.showArchiveTokenDialog,
+            showAddLabelDialog = initialUiState.showAddLabelDialog,
             showDuplicateTokenDialog = initialUiState.showDuplicateTokenDialog,
+            availableLabels = initialUiState.availableLabels,
             editLoadState = initialUiState.editLoadState,
             isSaving = initialUiState.isSaving,
             operationError = initialUiState.operationError,
@@ -395,6 +491,20 @@ class TokenSetupViewModel(
             isSaving = false,
             operationError = if (result.isFailure) {
                 getString(Res.string.account_delete_failed)
+            } else null,
+        )
+        return result.isSuccess
+    }
+
+    suspend fun toggleArchiveToken(): Boolean {
+        val token = currentToken ?: return false
+        _uiState.value = _uiState.value.copy(isSaving = true, operationError = null)
+        val result = updateTokenUseCase(token.copy(isArchived = !token.isArchived))
+        result.onFailure { logger.e("Failed to change token archive state", it) }
+        _uiState.value = _uiState.value.copy(
+            isSaving = false,
+            operationError = if (result.isFailure) {
+                getString(Res.string.account_save_failed)
             } else null,
         )
         return result.isSuccess
@@ -421,7 +531,15 @@ class TokenSetupViewModel(
         _uiState.value = _uiState.value.copy(showDeleteTokenDialog = show)
     }
 
+    fun showArchiveTokenDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showArchiveTokenDialog = show)
+    }
+
     fun showDuplicateTokenDialog(args: DuplicateTokenDialogArgs) {
         _uiState.value = _uiState.value.copy(showDuplicateTokenDialog = args)
+    }
+
+    private companion object {
+        const val LABEL_ERROR = "Labels must be 1–${TokenLabels.MAX_LENGTH} characters."
     }
 }

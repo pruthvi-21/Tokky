@@ -1,6 +1,7 @@
 package com.boxy.authenticator.ui.screens.home
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -11,12 +12,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,7 +31,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.HorizontalDivider
@@ -37,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,6 +68,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.refresh
 import com.boxy.authenticator.domain.models.TokenEntry
+import com.boxy.authenticator.domain.models.enums.LabelVisibility
+import com.boxy.authenticator.domain.models.enums.shouldShowLabels
 import com.boxy.authenticator.domain.models.otp.HotpInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo
 import com.boxy.authenticator.ui.components.design.BoxyProgressBar
@@ -73,6 +79,7 @@ import com.boxy.authenticator.utils.getInitials
 import com.boxy.authenticator.utils.moveRight
 import com.boxy.authenticator.utils.name
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import kotlin.collections.component1
@@ -87,27 +94,48 @@ fun TokensList(
     viewedTokenIds: Set<String>,
     onTokenViewed: (String) -> Unit,
     onUpdateHotpCounter: (String, Long, (Boolean) -> Unit) -> Unit,
-    onEdit: (token: TokenEntry) -> Unit,
+    selectedTokenIds: Set<String>,
+    onTokenLongPressed: (String) -> Unit,
+    onTokenSelectionToggle: (String) -> Unit,
+    labelVisibility: LabelVisibility,
+    headerContent: @Composable () -> Unit = {},
+    emptyMessage: String = "",
     singleExpansion: Boolean = true,
+    modifier: Modifier = Modifier,
 ) {
-    val expandedStates = remember { mutableStateMapOf<TokenEntry, Boolean>() }
-    val groupedAccounts = tokensList
-        .sortedBy { it.name.lowercase() }
-        .groupBy { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
+    val expandedStates = remember { mutableStateMapOf<String, Boolean>() }
+    val expansionScope = rememberCoroutineScope()
+    var expansionAnimationJob by remember { mutableStateOf<Job?>(null) }
+    var isCardExpansionAnimating by remember { mutableStateOf(false) }
+    val groupedAccounts = remember(tokensList) {
+        tokensList
+            .sortedBy { it.name.lowercase() }
+            .groupBy { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
+    }
 
     val cardShape = MaterialTheme.shapes.medium
 
-    LazyColumn {
+    LazyColumn(modifier = modifier) {
+        item(key = "label-filters") {
+            headerContent()
+        }
         groupedAccounts.forEach { (letter, tokens) ->
-            stickyHeader {
+            stickyHeader(key = "letter-$letter") {
                 Text(
                     text = letter.toString(),
-                    modifier = Modifier.padding(vertical = 3.dp, horizontal = 37.5.dp),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .padding(vertical = 3.dp, horizontal = 37.5.dp)
+                        .animateItem(
+                            fadeInSpec = tween(SLIDE_DURATION),
+                            placementSpec = if (isCardExpansionAnimating) null
+                            else tween(SLIDE_DURATION),
+                            fadeOutSpec = tween(SLIDE_DURATION),
+                        ),
                 )
             }
-            itemsIndexed(tokens) { index, token ->
+            itemsIndexed(tokens, key = { _, token -> token.id }) { index, token ->
                 val shape = when {
                     tokens.size == 1 -> cardShape
                     index == 0 -> cardShape.copy(
@@ -122,33 +150,68 @@ fun TokensList(
 
                     else -> RectangleShape
                 }
-                TokenCard(
-                    token = token,
-                    onEdit = onEdit,
-                    isExpanded = expandedStates[token] ?: false,
-                    isNewItem = token.id !in viewedTokenIds,
-                    onUpdateHotpCounter = onUpdateHotpCounter,
-                    onToggleExpand = { isExpanded ->
-                        onTokenViewed(token.id)
-                        if (singleExpansion) {
-                            expandedStates.keys.forEach { expandedStates[it] = false }
-                        }
-                        expandedStates[token] = isExpanded
-                    },
-                    modifier = Modifier
-                        .padding(horizontal = 10.dp)
-                        .clip(shape)
-                )
-                if (index != tokens.lastIndex) {
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
+                Column(
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = tween(SLIDE_DURATION),
+                        placementSpec = if (isCardExpansionAnimating) null
+                        else tween(SLIDE_DURATION),
+                        fadeOutSpec = tween(SLIDE_DURATION),
+                    )
+                ) {
+                    TokenCard(
+                        token = token,
+                        labelVisibility = labelVisibility,
+                        isExpanded = expandedStates[token.id] ?: false,
+                        isSelectionMode = selectedTokenIds.isNotEmpty(),
+                        isSelected = token.id in selectedTokenIds,
+                        isNewItem = token.id !in viewedTokenIds,
+                        onUpdateHotpCounter = onUpdateHotpCounter,
+                        onToggleExpand = { isExpanded ->
+                            expansionAnimationJob?.cancel()
+                            isCardExpansionAnimating = true
+                            onTokenViewed(token.id)
+                            if (singleExpansion) {
+                                expandedStates.entries
+                                    .firstOrNull { (id, expanded) -> expanded && id != token.id }
+                                    ?.key
+                                    ?.let { expandedStates[it] = false }
+                            }
+                            expandedStates[token.id] = isExpanded
+                            expansionAnimationJob = expansionScope.launch {
+                                delay(SLIDE_DURATION.toLong())
+                                isCardExpansionAnimating = false
+                            }
+                        },
+                        onLongPress = {
+                            expandedStates[token.id] = false
+                            onTokenLongPressed(token.id)
+                        },
+                        onSelectionToggle = { onTokenSelectionToggle(token.id) },
                         modifier = Modifier
                             .padding(horizontal = 10.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(start = 90.dp, end = 24.dp),
+                            .clip(shape)
                     )
+                    if (index != tokens.lastIndex) {
+                        HorizontalDivider(
+                            thickness = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier
+                                .padding(horizontal = 10.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(start = 90.dp, end = 24.dp),
+                        )
+                    }
                 }
+            }
+        }
+
+        if (tokensList.isEmpty() && emptyMessage.isNotEmpty()) {
+            item(key = "empty-filter-result") {
+                Text(
+                    text = emptyMessage,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 36.dp, vertical = 72.dp),
+                )
             }
         }
 
@@ -166,23 +229,41 @@ fun TokensList(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TokenCard(
     token: TokenEntry,
-    onEdit: (TokenEntry) -> Unit,
+    labelVisibility: LabelVisibility,
     isExpanded: Boolean,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
     isNewItem: Boolean,
     onUpdateHotpCounter: (String, Long, (Boolean) -> Unit) -> Unit,
     onToggleExpand: (Boolean) -> Unit,
+    onLongPress: () -> Unit,
+    onSelectionToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val sortedLabels = remember(token.labels) {
+        token.labels.sortedWith(String.CASE_INSENSITIVE_ORDER)
+    }
+    val containerColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.secondaryContainer
+        else MaterialTheme.colorScheme.surfaceVariant,
+        animationSpec = tween(SLIDE_DURATION),
+        label = "TokenSelectionColor",
+    )
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable {
-                onToggleExpand(!isExpanded)
-            }
+            .background(containerColor)
+            .combinedClickable(
+                onClick = {
+                    if (isSelectionMode) onSelectionToggle()
+                    else onToggleExpand(!isExpanded)
+                },
+                onLongClick = onLongPress,
+            )
             .padding(horizontal = 24.dp, vertical = 15.dp)
 
     ) {
@@ -206,8 +287,36 @@ fun TokenCard(
             )
             Arrow(
                 isExpanded = isExpanded,
-                onEdit = { onEdit(token) }
+                isSelectionMode = isSelectionMode,
+                isSelected = isSelected,
             )
+        }
+
+        AnimatedVisibility(
+            visible = !token.isArchived && token.labels.isNotEmpty() &&
+                    labelVisibility.shouldShowLabels(isExpanded),
+            enter = expandVertically(animationSpec = tween(SLIDE_DURATION)),
+            exit = shrinkVertically(animationSpec = tween(SLIDE_DURATION)),
+        ) {
+            FlowRow(
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(start = 59.dp, top = 6.dp),
+            ) {
+                sortedLabels.forEach { label ->
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                        )
+                    }
+                }
+            }
         }
 
         AnimatedVisibility(
@@ -384,8 +493,9 @@ private fun TOTPFieldView(
 
 @Composable
 private fun Arrow(
-    onEdit: () -> Unit,
     isExpanded: Boolean,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -399,32 +509,21 @@ private fun Arrow(
             label = "ExpandCollapseAnimation"
         )
 
-        if (isExpanded) {
-            IconButton(
-                onClick = onEdit,
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .size(24.dp)
-                    .aspectRatio(1f / 1)
-                    .alpha(animationProgress)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Edit,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            Spacer(Modifier.width(20.dp))
-        }
-
         Icon(
-            imageVector = Icons.Rounded.ArrowBackIosNew,
+            imageVector = when {
+                isSelectionMode && isSelected -> Icons.Outlined.CheckCircle
+                isSelectionMode -> Icons.Outlined.RadioButtonUnchecked
+                else -> Icons.Rounded.ArrowBackIosNew
+            },
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier
                 .size(20.dp)
                 .fillMaxHeight()
-                .graphicsLayer(rotationZ = -90f + animationProgress * 180f)
+                .graphicsLayer(
+                    rotationZ = if (isSelectionMode) 0f
+                    else -90f + animationProgress * 180f
+                )
         )
     }
 }

@@ -26,4 +26,8 @@ sealed class Screen {
 
     @Serializable
     data object ExportTokens : Screen()
+
+    @Serializable
+    data object ManageLabels : Screen()
+
 }

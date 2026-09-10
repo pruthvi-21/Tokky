@@ -7,6 +7,10 @@ import com.boxy.authenticator.domain.models.enums.OTPType
 sealed class TokenFormEvent {
     data class IssuerChanged(val issuer: String) : TokenFormEvent()
     data class LabelChanged(val label: String) : TokenFormEvent()
+    data class NewLabelChanged(val label: String) : TokenFormEvent()
+    data object AddLabel : TokenFormEvent()
+    data class LabelToggled(val label: String) : TokenFormEvent()
+    data class AddLabelDialogVisibilityChanged(val visible: Boolean) : TokenFormEvent()
     data class SecretKeyChanged(val secretKey: String) : TokenFormEvent()
     data class TypeChanged(val type: OTPType) : TokenFormEvent()
     data class ThumbnailChanged(val thumbnail: Thumbnail) : TokenFormEvent()

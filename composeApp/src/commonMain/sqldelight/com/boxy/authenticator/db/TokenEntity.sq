@@ -6,11 +6,28 @@ CREATE TABLE token_entry (
     otpInfo TEXT NOT NULL,
     createdOn INTEGER NOT NULL,
     updatedOn INTEGER NOT NULL,
-    addedFrom TEXT NOT NULL
+    addedFrom TEXT NOT NULL,
+    isArchived INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX token_entry_name_idx
 ON token_entry(issuer COLLATE NOCASE, label COLLATE NOCASE);
+
+CREATE TABLE label_entity (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    createdOn INTEGER NOT NULL
+);
+
+CREATE TABLE token_label (
+    tokenId TEXT NOT NULL,
+    labelId INTEGER NOT NULL,
+    PRIMARY KEY (tokenId, labelId),
+    FOREIGN KEY (tokenId) REFERENCES token_entry(id) ON DELETE CASCADE,
+    FOREIGN KEY (labelId) REFERENCES label_entity(id) ON DELETE CASCADE
+);
+
+CREATE INDEX token_label_label_idx ON token_label(labelId, tokenId);
 
 getAllTokens:
 SELECT * FROM token_entry
@@ -20,8 +37,8 @@ getTokensCount:
 SELECT COUNT(*) FROM token_entry;
 
 insertToken:
-INSERT INTO token_entry (id, issuer, label, thumbnail, otpInfo, createdOn, updatedOn, addedFrom)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO token_entry (id, issuer, label, thumbnail, otpInfo, createdOn, updatedOn, addedFrom, isArchived)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteToken:
 DELETE FROM token_entry WHERE id = ?;
@@ -41,7 +58,8 @@ SET issuer = ?,
     label = ?,
     thumbnail = ?,
     otpInfo = ?,
-    updatedOn = ?
+    updatedOn = ?,
+    isArchived = ?
 WHERE id = ?;
 
 updateHotpInfo:
@@ -49,3 +67,60 @@ UPDATE token_entry
 SET otpInfo = ?,
     updatedOn = ?
 WHERE id = ?;
+
+getAllTokenLabels:
+SELECT token_label.tokenId, label_entity.name
+FROM token_label
+JOIN label_entity ON label_entity.id = token_label.labelId
+ORDER BY label_entity.name COLLATE NOCASE;
+
+getLabelsForToken:
+SELECT label_entity.name
+FROM token_label
+JOIN label_entity ON label_entity.id = token_label.labelId
+WHERE token_label.tokenId = :tokenId
+ORDER BY label_entity.name COLLATE NOCASE;
+
+getLabelsWithCounts:
+SELECT label_entity.name, COUNT(token_entry.id) AS tokenCount
+FROM label_entity
+LEFT JOIN token_label ON token_label.labelId = label_entity.id
+LEFT JOIN token_entry
+    ON token_entry.id = token_label.tokenId
+    AND token_entry.isArchived = 0
+GROUP BY label_entity.id
+ORDER BY label_entity.name COLLATE NOCASE;
+
+insertLabel:
+INSERT OR IGNORE INTO label_entity(name, createdOn) VALUES (?, ?);
+
+findLabelId:
+SELECT id FROM label_entity WHERE name = :name COLLATE NOCASE LIMIT 1;
+
+insertTokenLabel:
+INSERT OR IGNORE INTO token_label(tokenId, labelId) VALUES (?, ?);
+
+deleteTokenLabels:
+DELETE FROM token_label WHERE tokenId = ?;
+
+updateLabelName:
+UPDATE label_entity SET name = :name WHERE id = :id;
+
+touchTokensForLabel:
+UPDATE token_entry
+SET updatedOn = :updatedOn
+WHERE id IN (SELECT tokenId FROM token_label WHERE labelId = :labelId);
+
+mergeLabelRelations:
+INSERT OR IGNORE INTO token_label(tokenId, labelId)
+SELECT tokenId, :targetLabelId FROM token_label WHERE labelId = :sourceLabelId;
+
+deleteTokenLabelsForLabel:
+DELETE FROM token_label WHERE labelId = :labelId;
+
+deleteLabel:
+DELETE FROM label_entity WHERE id = :labelId;
+
+deleteUnusedLabels:
+DELETE FROM label_entity
+WHERE NOT EXISTS (SELECT 1 FROM token_label WHERE token_label.labelId = label_entity.id);

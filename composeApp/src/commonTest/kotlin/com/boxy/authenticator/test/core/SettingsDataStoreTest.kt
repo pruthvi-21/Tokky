@@ -3,6 +3,7 @@ package com.boxy.authenticator.test.core
 import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.domain.models.enums.AppTheme
 import com.boxy.authenticator.domain.models.enums.TokenTapResponse
+import com.boxy.authenticator.domain.models.enums.LabelVisibility
 import com.boxy.authenticator.test.InMemoryPreferenceStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,6 +22,8 @@ class SettingsDataStoreTest {
 
         assertEquals(AppTheme.SYSTEM, result.appTheme)
         assertEquals(TokenTapResponse.NEVER, result.tokenTapResponse)
+        assertEquals(LabelVisibility.ALWAYS, result.labelVisibility)
+        assertFalse(result.isShowLabelCountsEnabled)
         assertFalse(result.isAppLockEnabled)
         assertFalse(result.isBiometricUnlockEnabled)
         assertTrue(result.isBlockScreenshotsEnabled)
@@ -32,6 +35,8 @@ class SettingsDataStoreTest {
     fun `all ordinary settings round trip through preference store`() {
         settings.setAppTheme(AppTheme.DARK)
         settings.setTokenTapResponse(TokenTapResponse.DOUBLE_TAP)
+        settings.setLabelVisibility(LabelVisibility.WHEN_EXPANDED)
+        settings.setShowLabelCountsEnabled(true)
         settings.setLockscreenPinPadEnabled(true)
         settings.setDisableBackupAlertsEnabled(true)
         settings.setBiometricUnlockEnabled(true)
@@ -42,6 +47,8 @@ class SettingsDataStoreTest {
         val result = settings.getSettings()
         assertEquals(AppTheme.DARK, result.appTheme)
         assertEquals(TokenTapResponse.DOUBLE_TAP, result.tokenTapResponse)
+        assertEquals(LabelVisibility.WHEN_EXPANDED, result.labelVisibility)
+        assertTrue(result.isShowLabelCountsEnabled)
         assertTrue(result.isLockscreenPinPadEnabled)
         assertTrue(result.isDisableBackupAlertsEnabled)
         assertTrue(result.isBiometricUnlockEnabled)
@@ -54,9 +61,11 @@ class SettingsDataStoreTest {
     fun `unknown enum values fall back to defaults`() {
         store.values[SettingsDataStore.Companion.Keys.APP_THEME] = "FUTURE_THEME"
         store.values[SettingsDataStore.Companion.Keys.TOKEN_TAP_RESPONSE] = "TRIPLE_TAP"
+        store.values[SettingsDataStore.Companion.Keys.LABEL_VISIBILITY] = "SOMETIMES"
 
         assertEquals(AppTheme.SYSTEM, settings.getAppTheme())
         assertEquals(TokenTapResponse.NEVER, settings.getTokenTapResponse())
+        assertEquals(LabelVisibility.ALWAYS, settings.getLabelVisibility())
     }
 
     @Test
@@ -84,6 +93,17 @@ class SettingsDataStoreTest {
         settings.markItemAsViewed("first")
 
         assertEquals(listOf("first", "second"), settings.getViewedItems())
+    }
+
+    @Test
+    fun `default label filter can be persisted and cleared`() {
+        assertNull(settings.getDefaultLabelFilter())
+
+        settings.setDefaultLabelFilter("Work")
+        assertEquals("Work", settings.getDefaultLabelFilter())
+
+        settings.setDefaultLabelFilter(null)
+        assertNull(settings.getDefaultLabelFilter())
     }
 
     @Test

@@ -10,6 +10,8 @@ data class ExportableTokenEntry(
     var label: String = "",
     var thumbnail: Thumbnail,
     val otpInfo: OtpInfo,
+    val labels: Set<String> = emptySet(),
+    val isArchived: Boolean = false,
 ) {
     fun toTokenEntry(): TokenEntry {
         return TokenEntry.create(
@@ -18,6 +20,8 @@ data class ExportableTokenEntry(
             thumbnail = thumbnail,
             otpInfo = otpInfo,
             addedFrom = AccountEntryMethod.RESTORED,
+            labels = labels,
+            isArchived = isArchived,
         )
     }
 
@@ -28,6 +32,8 @@ data class ExportableTokenEntry(
                 label = token.label,
                 thumbnail = token.thumbnail,
                 otpInfo = token.otpInfo,
+                labels = token.labels,
+                isArchived = token.isArchived,
             )
         }
     }

@@ -23,6 +23,8 @@ data class TokenEntry(
     val createdOn: Long,
     val updatedOn: Long,
     val addedFrom: AccountEntryMethod,
+    val labels: Set<String> = emptySet(),
+    val isArchived: Boolean = false,
 ) {
     companion object {
         @OptIn(ExperimentalUuidApi::class)
@@ -32,6 +34,8 @@ data class TokenEntry(
             thumbnail: Thumbnail = Thumbnail.Color(Constants.THUMBNAIL_COlORS.random()),
             otpInfo: OtpInfo,
             addedFrom: AccountEntryMethod,
+            labels: Set<String> = emptySet(),
+            isArchived: Boolean = false,
         ): TokenEntry {
             return TokenEntry(
                 id = Uuid.random().toString(),
@@ -41,7 +45,9 @@ data class TokenEntry(
                 otpInfo = otpInfo,
                 createdOn = Clock.System.now().toEpochMilliseconds(),
                 updatedOn = Clock.System.now().toEpochMilliseconds(),
-                addedFrom = addedFrom
+                addedFrom = addedFrom,
+                labels = labels,
+                isArchived = isArchived,
             )
         }
     }

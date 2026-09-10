@@ -11,11 +11,16 @@ import com.boxy.authenticator.domain.models.otp.SteamInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo
 import com.boxy.authenticator.test.testToken
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertFalse
 
 class SerializationTest {
     @Test
@@ -81,13 +86,16 @@ class SerializationTest {
 
     @Test
     fun `export model drops database metadata and restores as a new token`() {
-        val original = testToken(id = "database-id")
+        val original = testToken(id = "database-id", labels = setOf("Work", "Admin"))
+            .copy(isArchived = true)
 
         val restored = ExportableTokenEntry.fromTokenEntry(original).toTokenEntry()
 
         assertEquals(original.issuer, restored.issuer)
         assertEquals(original.label, restored.label)
         assertEquals(original.thumbnail, restored.thumbnail)
+        assertEquals(original.labels, restored.labels)
+        assertEquals(original.isArchived, restored.isArchived)
         assertContentEquals(original.otpInfo.secretKey, restored.otpInfo.secretKey)
         assertEquals(AccountEntryMethod.RESTORED, restored.addedFrom)
         kotlin.test.assertNotEquals(original.id, restored.id)
@@ -96,7 +104,9 @@ class SerializationTest {
     @Test
     fun `exportable token list round trips through Boxy JSON`() {
         val originals = listOf(
-            ExportableTokenEntry.fromTokenEntry(testToken(id = "one")),
+            ExportableTokenEntry.fromTokenEntry(
+                testToken(id = "one", labels = setOf("Work")).copy(isArchived = true)
+            ),
             ExportableTokenEntry.fromTokenEntry(
                 testToken(id = "two", otpInfo = HotpInfo(byteArrayOf(9), counter = 4L)),
             ),
@@ -110,5 +120,20 @@ class SerializationTest {
         assertIs<TotpInfo>(decoded[0].otpInfo)
         assertIs<HotpInfo>(decoded[1].otpInfo)
         assertEquals(4L, (decoded[1].otpInfo as HotpInfo).counter)
+        assertEquals(originals[0].labels, decoded[0].labels)
+        assertEquals(originals[0].isArchived, decoded[0].isArchived)
+    }
+
+    @Test
+    fun `encrypted backup entries without newer metadata remain importable`() {
+        val encoded = BoxyJson.encodeToJsonElement(
+            ExportableTokenEntry.fromTokenEntry(testToken())
+        ).jsonObject
+        val olderEntry = JsonObject(encoded - "labels" - "isArchived")
+
+        val decoded = BoxyJson.decodeFromJsonElement<ExportableTokenEntry>(olderEntry)
+
+        assertEquals(emptySet(), decoded.labels)
+        assertFalse(decoded.isArchived)
     }
 }

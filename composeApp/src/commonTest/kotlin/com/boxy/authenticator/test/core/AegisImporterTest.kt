@@ -24,6 +24,7 @@ class AegisImporterTest {
         assertEquals(3, tokens.size)
         assertEquals("Example", tokens[0].issuer)
         assertEquals("alice@example.test", tokens[0].label)
+        assertEquals(setOf("Work"), tokens[0].labels)
         assertIs<TotpInfo>(tokens[0].otpInfo)
         assertEquals(45, (tokens[0].otpInfo as TotpInfo).period)
         assertIs<HotpInfo>(tokens[1].otpInfo)
@@ -112,11 +113,11 @@ class AegisImporterTest {
           "db": {
             "version": $databaseVersion,
             "entries": [
-              {"type":"totp","name":"alice@example.test","issuer":"Example","info":{"secret":"JBSWY3DPEHPK3PXP","algo":"SHA-256","digits":8,"period":45}},
+              {"type":"totp","name":"alice@example.test","issuer":"Example","groups":["group-work"],"info":{"secret":"JBSWY3DPEHPK3PXP","algo":"SHA-256","digits":8,"period":45}},
               {"type":"hotp","name":"hardware","issuer":"Example","info":{"secret":"JBSWY3DPEHPK3PXP","algo":"SHA1","digits":6,"counter":42}},
               {"type":"steam","name":"Steam account","issuer":"","info":{"secret":"JBSWY3DPEHPK3PXP","algo":"SHA1","digits":5,"period":30}}
             ],
-            "groups": []
+            "groups": [{"uuid":"group-work","name":"Work"}]
           }
         }
     """.trimIndent()

@@ -14,7 +14,6 @@ import androidx.navigation.NavController
 import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.title_settings
 import com.boxy.authenticator.domain.models.form.SettingChangeEvent
-import com.boxy.authenticator.navigation.Screen
 import com.boxy.authenticator.ui.components.Toolbar
 import com.boxy.authenticator.ui.components.design.BoxyPreferenceScreen
 import com.boxy.authenticator.ui.components.design.BoxyScaffold

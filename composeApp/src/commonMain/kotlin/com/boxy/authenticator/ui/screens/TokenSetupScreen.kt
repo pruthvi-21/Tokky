@@ -13,6 +13,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,8 +29,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Unarchive
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +43,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,11 +62,14 @@ import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.account_exists_dialog_message
 import boxy_authenticator.composeapp.generated.resources.account_exists_dialog_title
 import boxy_authenticator.composeapp.generated.resources.account_load_failed
+import boxy_authenticator.composeapp.generated.resources.add
+import boxy_authenticator.composeapp.generated.resources.add_label
 import boxy_authenticator.composeapp.generated.resources.cancel
 import boxy_authenticator.composeapp.generated.resources.dialog_message_delete_token
 import boxy_authenticator.composeapp.generated.resources.hint_counter
 import boxy_authenticator.composeapp.generated.resources.hint_issuer
 import boxy_authenticator.composeapp.generated.resources.hint_label
+import boxy_authenticator.composeapp.generated.resources.hint_add_label
 import boxy_authenticator.composeapp.generated.resources.hint_period
 import boxy_authenticator.composeapp.generated.resources.hint_secret_key
 import boxy_authenticator.composeapp.generated.resources.go_back
@@ -70,6 +80,9 @@ import boxy_authenticator.composeapp.generated.resources.label_counter
 import boxy_authenticator.composeapp.generated.resources.label_digits
 import boxy_authenticator.composeapp.generated.resources.label_issuer
 import boxy_authenticator.composeapp.generated.resources.label_label
+import boxy_authenticator.composeapp.generated.resources.label_labels
+import boxy_authenticator.composeapp.generated.resources.label_name
+import boxy_authenticator.composeapp.generated.resources.cd_add_label
 import boxy_authenticator.composeapp.generated.resources.label_period
 import boxy_authenticator.composeapp.generated.resources.label_secret_key
 import boxy_authenticator.composeapp.generated.resources.label_update_account
@@ -77,6 +90,12 @@ import boxy_authenticator.composeapp.generated.resources.message_unsaved_changes
 import boxy_authenticator.composeapp.generated.resources.no
 import boxy_authenticator.composeapp.generated.resources.remove
 import boxy_authenticator.composeapp.generated.resources.remove_account
+import boxy_authenticator.composeapp.generated.resources.archive
+import boxy_authenticator.composeapp.generated.resources.archive_account
+import boxy_authenticator.composeapp.generated.resources.archive_account_message
+import boxy_authenticator.composeapp.generated.resources.restore
+import boxy_authenticator.composeapp.generated.resources.restore_account
+import boxy_authenticator.composeapp.generated.resources.restore_account_message
 import boxy_authenticator.composeapp.generated.resources.retry
 import boxy_authenticator.composeapp.generated.resources.rename
 import boxy_authenticator.composeapp.generated.resources.replace
@@ -107,6 +126,7 @@ import com.boxy.authenticator.utils.name
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TokenSetupScreen(
     viewModel: TokenSetupViewModel,
@@ -116,6 +136,10 @@ fun TokenSetupScreen(
     navController: NavController,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.loadAvailableLabels()
+    }
 
     LaunchedEffect(authUrl) {
         if (authUrl != null) {
@@ -129,50 +153,64 @@ fun TokenSetupScreen(
         }
     }
 
+    val visibleEditLoadState = if (
+        setupMode == TokenSetupMode.UPDATE &&
+        tokenId != null &&
+        uiState.editLoadState == DataLoadState.Initial
+    ) {
+        DataLoadState.Loading
+    } else {
+        uiState.editLoadState
+    }
+
     AnimatedContent(
-        targetState = uiState.editLoadState,
+        targetState = visibleEditLoadState,
         transitionSpec = { fadeIn() togetherWith fadeOut() },
         label = "token-edit-load-state",
     ) { loadState ->
-    when (loadState) {
-    DataLoadState.Loading -> Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) { CircularProgressIndicator() }
-    is DataLoadState.Error -> Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(stringResource(Res.string.account_load_failed), color = MaterialTheme.colorScheme.error)
-        BoxyButton(
-            onClick = { tokenId?.let(viewModel::loadToken) },
-            modifier = Modifier.padding(top = 12.dp),
-        ) { Text(stringResource(Res.string.retry)) }
-        BoxyButton(
-            onClick = navController::navigateUp,
-            modifier = Modifier.padding(top = 8.dp),
-        ) { Text(stringResource(Res.string.go_back)) }
-    }
-    else -> TokenSetupScreen(
-        uiState = uiState,
-        lockSensitiveFields = viewModel.lockSensitiveFields,
-        onFormEvent = viewModel::onEvent,
-        showBackPressDialog = viewModel::showBackPressDialog,
-        showDeleteTokenDialog = viewModel::showDeleteTokenDialog,
-        showDuplicateTokenDialog = viewModel::showDuplicateTokenDialog,
-        deleteToken = viewModel::deleteToken,
-        replaceExistingToken = viewModel::replaceExistingToken,
-        onBackPress = {
-            if (viewModel.isFormUpdated()) {
-                viewModel.showBackPressDialog(true)
-            } else {
-                navController.navigateUp()
+        when (loadState) {
+            DataLoadState.Loading -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator() }
+
+            is DataLoadState.Error -> Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(stringResource(Res.string.account_load_failed), color = MaterialTheme.colorScheme.error)
+                BoxyButton(
+                    onClick = { tokenId?.let(viewModel::loadToken) },
+                    modifier = Modifier.padding(top = 12.dp),
+                ) { Text(stringResource(Res.string.retry)) }
+                BoxyButton(
+                    onClick = navController::navigateUp,
+                    modifier = Modifier.padding(top = 8.dp),
+                ) { Text(stringResource(Res.string.go_back)) }
             }
-        },
-        navigateUp = navController::navigateUp
-    )
-    }
+
+            else -> TokenSetupScreen(
+                uiState = uiState,
+                lockSensitiveFields = viewModel.lockSensitiveFields,
+                onFormEvent = viewModel::onEvent,
+                showBackPressDialog = viewModel::showBackPressDialog,
+                showDeleteTokenDialog = viewModel::showDeleteTokenDialog,
+                showArchiveTokenDialog = viewModel::showArchiveTokenDialog,
+                showDuplicateTokenDialog = viewModel::showDuplicateTokenDialog,
+                deleteToken = viewModel::deleteToken,
+                toggleArchiveToken = viewModel::toggleArchiveToken,
+                replaceExistingToken = viewModel::replaceExistingToken,
+                onBackPress = {
+                    if (viewModel.isFormUpdated()) {
+                        viewModel.showBackPressDialog(true)
+                    } else {
+                        navController.navigateUp()
+                    }
+                },
+                navigateUp = navController::navigateUp
+            )
+        }
     }
 }
 
@@ -184,8 +222,10 @@ private fun TokenSetupScreen(
     onFormEvent: (TokenFormEvent) -> Unit,
     showBackPressDialog: (Boolean) -> Unit,
     showDeleteTokenDialog: (Boolean) -> Unit,
+    showArchiveTokenDialog: (Boolean) -> Unit,
     showDuplicateTokenDialog: (TokenSetupViewModel.DuplicateTokenDialogArgs) -> Unit,
     deleteToken: suspend () -> Boolean,
+    toggleArchiveToken: suspend () -> Boolean,
     replaceExistingToken: suspend (existingToken: TokenEntry, token: TokenEntry) -> Boolean,
     onBackPress: () -> Unit,
     navigateUp: () -> Unit,
@@ -209,6 +249,15 @@ private fun TokenSetupScreen(
                 onNavigationIconClick = onBackPress,
                 actions = {
                     if (uiState.tokenSetupMode == TokenSetupMode.UPDATE) {
+                        IconButton(onClick = { showArchiveTokenDialog(true) }) {
+                            Icon(
+                                imageVector = if (uiState.isArchived) Icons.Outlined.Unarchive
+                                else Icons.Outlined.Archive,
+                                contentDescription = stringResource(
+                                    if (uiState.isArchived) Res.string.restore else Res.string.archive
+                                ),
+                            )
+                        }
                         IconButton(onClick = { showDeleteTokenDialog(true) }) {
                             Icon(
                                 imageVector = Icons.Outlined.Delete,
@@ -270,6 +319,55 @@ private fun TokenSetupScreen(
                             if (success) navigateUp()
                         }
                     }
+                )
+            }
+
+            if (uiState.showArchiveTokenDialog) {
+                BoxyDialog(
+                    dialogTitle = stringResource(
+                        if (uiState.isArchived) Res.string.restore_account
+                        else Res.string.archive_account
+                    ),
+                    dialogBody = stringResource(
+                        if (uiState.isArchived) Res.string.restore_account_message
+                        else Res.string.archive_account_message
+                    ),
+                    confirmText = stringResource(
+                        if (uiState.isArchived) Res.string.restore else Res.string.archive
+                    ),
+                    onDismissRequest = { showArchiveTokenDialog(false) },
+                    onConfirmation = {
+                        scope.launch {
+                            val success = toggleArchiveToken()
+                            showArchiveTokenDialog(false)
+                            if (success) navigateUp()
+                        }
+                    },
+                )
+            }
+
+            if (uiState.showAddLabelDialog) {
+                BoxyDialog(
+                    dialogTitle = stringResource(Res.string.add_label),
+                    confirmText = stringResource(Res.string.add),
+                    confirmEnabled = uiState.newLabel.isNotBlank(),
+                    onDismissRequest = {
+                        onFormEvent(TokenFormEvent.AddLabelDialogVisibilityChanged(false))
+                    },
+                    onConfirmation = { onFormEvent(TokenFormEvent.AddLabel) },
+                    content = {
+                        BoxyTextField(
+                            value = uiState.newLabel,
+                            onValueChange = { onFormEvent(TokenFormEvent.NewLabelChanged(it)) },
+                            label = stringResource(Res.string.label_name),
+                            placeholder = stringResource(Res.string.hint_add_label),
+                            errorMessage = uiState.validationErrors["labels"],
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(
+                                onDone = { onFormEvent(TokenFormEvent.AddLabel) }
+                            ),
+                        )
+                    },
                 )
             }
 
@@ -358,6 +456,18 @@ private fun TokenSetupScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                LabelsPicker(
+                    availableLabels = uiState.availableLabels,
+                    selectedLabels = uiState.labels,
+                    onLabelToggle = { onFormEvent(TokenFormEvent.LabelToggled(it)) },
+                    onAddLabel = {
+                        keyboardController?.hide()
+                        onFormEvent(TokenFormEvent.AddLabelDialogVisibilityChanged(true))
+                    },
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 FormAdvancedOptions(
                     uiState = uiState,
                     onShowAdvancedOptions = {
@@ -412,6 +522,53 @@ private fun TokenSetupScreen(
                     Text(text = buttonText)
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LabelsPicker(
+    availableLabels: Set<String>,
+    selectedLabels: Set<String>,
+    onLabelToggle: (String) -> Unit,
+    onAddLabel: () -> Unit,
+) {
+    val sortedLabels = remember(availableLabels) {
+        availableLabels.sortedWith(String.CASE_INSENSITIVE_ORDER)
+    }
+    val selectedLabelKeys = remember(selectedLabels) {
+        selectedLabels.mapTo(mutableSetOf()) { it.lowercase() }
+    }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(Res.string.label_labels),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 6.dp),
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            sortedLabels.forEach { label ->
+                FilterChip(
+                    selected = label.lowercase() in selectedLabelKeys,
+                    onClick = { onLabelToggle(label) },
+                    label = { Text(label) },
+                )
+            }
+            FilterChip(
+                selected = false,
+                onClick = onAddLabel,
+                label = {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = stringResource(Res.string.cd_add_label),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            )
         }
     }
 }

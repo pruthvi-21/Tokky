@@ -159,29 +159,33 @@ object AegisImporter {
         return database
     }
 
-    private fun mapTokens(database: AegisDatabase): List<TokenEntry> = database.entries.map { entry ->
-        val secret = try {
-            Base32.decode(entry.info.secret.trim())
-        } catch (_: Throwable) {
-            throw InvalidAegisBackupException()
-        }
-        val algorithm = entry.info.algorithm.uppercase().replace("-", "")
-        val otpInfo = when (entry.type.lowercase()) {
-            "totp" -> TotpInfo(secret, algorithm, entry.info.digits, entry.info.period ?: 30L)
-            "hotp" -> HotpInfo(secret, algorithm, entry.info.digits, entry.info.counter ?: 0L)
-            "steam" -> SteamInfo(secret)
-            else -> throw UnsupportedAegisTokenTypeException(entry.type)
-        }
-        val issuer = entry.issuer.trim().ifEmpty { entry.name.trim() }
-        val label = if (entry.issuer.isBlank()) "" else entry.name.trim()
-        ImportedTokenValidator.validate(
-            TokenEntry.create(
-                issuer = issuer,
-                label = label,
-                otpInfo = otpInfo,
-                addedFrom = AccountEntryMethod.RESTORED,
+    private fun mapTokens(database: AegisDatabase): List<TokenEntry> {
+        val groupNames = database.groups.associate { it.uuid to it.name }
+        return database.entries.map { entry ->
+            val secret = try {
+                Base32.decode(entry.info.secret.trim())
+            } catch (_: Throwable) {
+                throw InvalidAegisBackupException()
+            }
+            val algorithm = entry.info.algorithm.uppercase().replace("-", "")
+            val otpInfo = when (entry.type.lowercase()) {
+                "totp" -> TotpInfo(secret, algorithm, entry.info.digits, entry.info.period ?: 30L)
+                "hotp" -> HotpInfo(secret, algorithm, entry.info.digits, entry.info.counter ?: 0L)
+                "steam" -> SteamInfo(secret)
+                else -> throw UnsupportedAegisTokenTypeException(entry.type)
+            }
+            val issuer = entry.issuer.trim().ifEmpty { entry.name.trim() }
+            val label = if (entry.issuer.isBlank()) "" else entry.name.trim()
+            ImportedTokenValidator.validate(
+                TokenEntry.create(
+                    issuer = issuer,
+                    label = label,
+                    otpInfo = otpInfo,
+                    addedFrom = AccountEntryMethod.RESTORED,
+                    labels = entry.groups.mapNotNull(groupNames::get).toSet(),
+                )
             )
-        )
+        }
     }
 
     private fun validatePasswordSlot(slot: AegisSlot) {
@@ -253,7 +257,11 @@ internal data class AegisAesParams(val nonce: String, val tag: String)
 internal data class AegisDatabase(
     val version: Int,
     val entries: List<AegisEntry>,
+    val groups: List<AegisGroup> = emptyList(),
 )
+
+@Serializable
+internal data class AegisGroup(val uuid: String, val name: String)
 
 @Serializable
 internal data class AegisEntry(
@@ -261,6 +269,7 @@ internal data class AegisEntry(
     val name: String,
     val issuer: String = "",
     val info: AegisEntryInfo,
+    val groups: List<String> = emptyList(),
 )
 
 @Serializable

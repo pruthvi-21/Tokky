@@ -3,6 +3,7 @@ package com.boxy.authenticator.data.database.repository
 import com.boxy.authenticator.data.database.dao.TokenDao
 import com.boxy.authenticator.domain.repository.TokenRepository
 import com.boxy.authenticator.domain.models.TokenEntry
+import com.boxy.authenticator.domain.models.LabelSummary
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -39,8 +40,17 @@ class LocalTokenRepository(
         tokenDao.deleteToken(tokenId)
     }
 
+    override suspend fun deleteTokens(tokenIds: Set<String>) = withContext(dispatcher) {
+        tokenDao.deleteTokens(tokenIds)
+    }
+
     override suspend fun updateToken(token: TokenEntry) = withContext(dispatcher) {
         tokenDao.updateToken(token.copy(updatedOn = Clock.System.now().toEpochMilliseconds()))
+    }
+
+    override suspend fun updateTokens(tokens: List<TokenEntry>) = withContext(dispatcher) {
+        val updatedOn = Clock.System.now().toEpochMilliseconds()
+        tokenDao.updateTokens(tokens.map { it.copy(updatedOn = updatedOn) })
     }
 
     override suspend fun replaceTokenWith(id: String, token: TokenEntry) = withContext(dispatcher) {
@@ -53,5 +63,17 @@ class LocalTokenRepository(
             counter = counter,
             updatedOn = Clock.System.now().toEpochMilliseconds(),
         )
+    }
+
+    override suspend fun getLabels(): List<LabelSummary> = withContext(dispatcher) {
+        tokenDao.getLabels()
+    }
+
+    override suspend fun renameLabel(oldName: String, newName: String) = withContext(dispatcher) {
+        tokenDao.renameLabel(oldName, newName, Clock.System.now().toEpochMilliseconds())
+    }
+
+    override suspend fun deleteLabel(name: String) = withContext(dispatcher) {
+        tokenDao.deleteLabel(name, Clock.System.now().toEpochMilliseconds())
     }
 }

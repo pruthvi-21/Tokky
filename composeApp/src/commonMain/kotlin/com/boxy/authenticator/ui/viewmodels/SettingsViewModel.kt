@@ -40,6 +40,20 @@ class SettingsViewModel(
                 )
             }
 
+            is SettingChangeEvent.LabelVisibilityChanged -> {
+                settingsDataStore.setLabelVisibility(event.visibility)
+                updateSettings(
+                    _uiState.value.settings.copy(labelVisibility = event.visibility)
+                )
+            }
+
+            is SettingChangeEvent.ShowLabelCountsChanged -> {
+                settingsDataStore.setShowLabelCountsEnabled(event.enabled)
+                updateSettings(
+                    _uiState.value.settings.copy(isShowLabelCountsEnabled = event.enabled)
+                )
+            }
+
             is SettingChangeEvent.LockScreenPinPadChanged -> {
                 settingsDataStore.setLockscreenPinPadEnabled(event.enabled)
                 updateSettings(
