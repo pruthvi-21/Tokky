@@ -1,6 +1,8 @@
 package com.boxy.authenticator.core
 
 import com.boxy.authenticator.data.preferences.PreferenceStore
+import com.boxy.authenticator.domain.models.AppLocale
+import com.boxy.authenticator.domain.models.AppLocales
 import com.boxy.authenticator.domain.models.enums.AppTheme
 import com.boxy.authenticator.domain.models.enums.LabelVisibility
 import com.boxy.authenticator.domain.models.enums.TokenTapResponse
@@ -14,6 +16,7 @@ class SettingsDataStore(
         return AppSettings(
             // Appearance
             appTheme = getAppTheme(),
+            appLocale = getAppLocale(),
 
             // General
             tokenTapResponse = getTokenTapResponse(),
@@ -44,6 +47,22 @@ class SettingsDataStore(
         } catch (e: IllegalArgumentException) {
             Defaults.APP_THEME
         }
+    }
+
+    fun setAppLocale(locale: AppLocale) {
+        store.putString(Keys.APP_LOCALE, locale.localeTag)
+        AppLocaleManager.setAppLocale(locale)
+    }
+
+    fun getAppLocale(): AppLocale {
+        val localeTag = store.getString(Keys.APP_LOCALE).orEmpty()
+        val locale = if (localeTag.isBlank()) {
+            AppLocale.SystemDefault
+        } else {
+            AppLocales.firstOrNull { it.matches(localeTag) } ?: AppLocale.SystemDefault
+        }
+        AppLocaleManager.setAppLocale(locale)
+        return locale
     }
 
     fun setLockscreenPinPadEnabled(isEnabled: Boolean) {
@@ -216,6 +235,7 @@ class SettingsDataStore(
         object Keys {
             // Appearance
             const val APP_THEME = "key_app_theme"
+            const val APP_LOCALE = "key_app_locale"
 
             // General
             const val TOKEN_TAP_RESPONSE = "key_token_tap_response"

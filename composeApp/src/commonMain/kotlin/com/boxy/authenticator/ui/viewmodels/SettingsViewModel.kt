@@ -35,6 +35,13 @@ class SettingsViewModel(
                 )
             }
 
+            is SettingChangeEvent.AppLocaleChanged -> {
+                settingsDataStore.setAppLocale(event.locale)
+                updateSettings(
+                    _uiState.value.settings.copy(appLocale = event.locale)
+                )
+            }
+
             is SettingChangeEvent.TokenTapResponseChanged -> {
                 settingsDataStore.setTokenTapResponse(event.response)
                 updateSettings(

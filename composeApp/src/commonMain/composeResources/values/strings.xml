@@ -200,6 +200,8 @@
 
     <!-- SettingsScreen -->
     <string name="preference_title_app_theme">App theme</string>
+    <string name="preference_title_language">Language</string>
+    <string name="preference_language_system_default">System default</string>
     <string name="preference_title_app_lock">Enable app lock</string>
     <string name="preference_title_biometrics">Use biometrics</string>
     <string name="preference_title_block_screenshots">Block screenshots</string>

@@ -6,6 +6,7 @@ import com.boxy.authenticator.domain.models.enums.TokenTapResponse
 
 data class AppSettings(
     val appTheme: AppTheme = AppTheme.SYSTEM,
+    val appLocale: AppLocale = AppLocale.SystemDefault,
     val tokenTapResponse: TokenTapResponse = TokenTapResponse.NEVER,
     val labelVisibility: LabelVisibility = LabelVisibility.ALWAYS,
     val isShowLabelCountsEnabled: Boolean = false,

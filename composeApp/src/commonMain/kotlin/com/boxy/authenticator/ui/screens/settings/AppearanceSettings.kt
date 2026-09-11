@@ -8,7 +8,12 @@ import boxy_authenticator.composeapp.generated.resources.dark
 import boxy_authenticator.composeapp.generated.resources.follow_system
 import boxy_authenticator.composeapp.generated.resources.light
 import boxy_authenticator.composeapp.generated.resources.preference_category_title_appearance
+import boxy_authenticator.composeapp.generated.resources.preference_language_system_default
 import boxy_authenticator.composeapp.generated.resources.preference_title_app_theme
+import boxy_authenticator.composeapp.generated.resources.preference_title_language
+import com.boxy.authenticator.core.AppLocaleManager
+import com.boxy.authenticator.domain.models.AppLocale
+import com.boxy.authenticator.domain.models.AppLocales
 import com.boxy.authenticator.domain.models.enums.AppTheme
 import com.boxy.authenticator.domain.models.form.SettingChangeEvent
 import com.boxy.authenticator.ui.state.SettingsUiState
@@ -28,6 +33,15 @@ fun AppearanceSettings(
     )
 
     val appTheme = uiState.settings.appTheme
+    val appLocale = uiState.settings.appLocale
+    val systemDefaultLabel = stringResource(Res.string.preference_language_system_default)
+    val localeOptions = listOf(AppLocale.SystemDefault) + AppLocales
+    val localeLabels = localeOptions.map { locale ->
+        if (locale.isSystemDefault) systemDefaultLabel else "${locale.name} - ${locale.nativeName}"
+    }
+    val selectedLocaleLabel = localeLabels[localeOptions.indexOfFirst {
+        it.localeTag == appLocale.localeTag
+    }.takeIf { it >= 0 } ?: 0]
 
     PreferenceCategory(
         title = { Text(stringResource(Res.string.preference_category_title_appearance)) },
@@ -50,7 +64,26 @@ fun AppearanceSettings(
                 }
                 onEvent(SettingChangeEvent.AppThemeChanged(theme))
             },
-            showDivider = false
         )
+        if (AppLocaleManager.isOverrideSupported) {
+            DropDownPreference(
+                title = { Text(stringResource(Res.string.preference_title_language)) },
+                value = selectedLocaleLabel,
+                entries = localeLabels,
+                summary = {
+                    Text(
+                        text = selectedLocaleLabel,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                onValueChange = { selected ->
+                    val index = localeLabels.indexOf(selected)
+                    onEvent(SettingChangeEvent.AppLocaleChanged(localeOptions.getOrElse(index) {
+                        AppLocale.SystemDefault
+                    }))
+                },
+                showDivider = false,
+            )
+        }
     }
 }
