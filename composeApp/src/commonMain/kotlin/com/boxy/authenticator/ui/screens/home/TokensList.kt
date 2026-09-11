@@ -342,8 +342,8 @@ private fun HOTPFieldView(
     otpInfo: HotpInfo,
     onUpdateCounter: (String, Long, (Boolean) -> Unit) -> Unit,
 ) {
-    var counter by remember { mutableLongStateOf(otpInfo.counter) }
-    var otp by remember { mutableStateOf(otpInfo.getOtp()) }
+    var counter by remember(tokenId, otpInfo.counter) { mutableLongStateOf(otpInfo.counter) }
+    var otp by remember(tokenId, otpInfo) { mutableStateOf(otpInfo.getOtp()) }
     val scope = rememberCoroutineScope()
 
     Row(
@@ -368,7 +368,7 @@ private fun HOTPFieldView(
         var isUpdating by remember { mutableStateOf(false) }
         IconButton(
             onClick = {
-                if (isUpdating) return@IconButton
+                if (isUpdating || counter == Long.MAX_VALUE) return@IconButton
 
                 scope.launch {
                     isUpdating = true
@@ -393,7 +393,7 @@ private fun HOTPFieldView(
                     }
                 }
             },
-            enabled = !isUpdating,
+            enabled = !isUpdating && counter < Long.MAX_VALUE,
             modifier = Modifier.moveRight(15.dp)
         ) {
             Icon(Icons.Rounded.Refresh, contentDescription = stringResource(Res.string.refresh))

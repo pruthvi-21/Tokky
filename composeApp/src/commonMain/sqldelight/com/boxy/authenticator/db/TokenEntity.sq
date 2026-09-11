@@ -30,6 +30,31 @@ CREATE TABLE token_label (
 
 CREATE INDEX token_label_label_idx ON token_label(labelId, tokenId);
 
+-- Preserve pre-existing duplicates; prevent any new active-name conflicts.
+CREATE TRIGGER token_entry_unique_name_insert
+BEFORE INSERT ON token_entry
+WHEN new.deletedOn IS NULL AND EXISTS (
+    SELECT 1 FROM token_entry
+    WHERE deletedOn IS NULL
+    AND issuer = new.issuer COLLATE NOCASE AND label = new.label COLLATE NOCASE
+)
+BEGIN
+    SELECT RAISE(ABORT, 'An account with this name already exists.');
+END;
+
+CREATE TRIGGER token_entry_unique_name_update
+BEFORE UPDATE OF issuer, label, deletedOn ON token_entry
+WHEN new.deletedOn IS NULL
+AND (old.deletedOn IS NOT NULL OR old.issuer != new.issuer COLLATE NOCASE OR old.label != new.label COLLATE NOCASE)
+AND EXISTS (
+    SELECT 1 FROM token_entry
+    WHERE deletedOn IS NULL AND id != old.id
+    AND issuer = new.issuer COLLATE NOCASE AND label = new.label COLLATE NOCASE
+)
+BEGIN
+    SELECT RAISE(ABORT, 'An account with this name already exists.');
+END;
+
 getAllTokens:
 SELECT * FROM token_entry
 WHERE deletedOn IS NULL
@@ -56,13 +81,13 @@ DELETE FROM token_entry WHERE id = ?;
 moveTokenToRecycleBin:
 UPDATE token_entry
 SET deletedOn = :deletedOn,
-    updatedOn = :deletedOn
+    updatedOn = MAX(updatedOn + 1, :deletedOn)
 WHERE id = :tokenId AND deletedOn IS NULL;
 
 restoreToken:
 UPDATE token_entry
 SET deletedOn = NULL,
-    updatedOn = :updatedOn
+    updatedOn = MAX(updatedOn + 1, :updatedOn)
 WHERE id = :tokenId
 AND deletedOn IS NOT NULL
 AND NOT EXISTS (
@@ -166,7 +191,7 @@ UPDATE label_entity SET name = :name WHERE id = :id;
 
 touchTokensForLabel:
 UPDATE token_entry
-SET updatedOn = :updatedOn
+SET updatedOn = MAX(updatedOn + 1, :updatedOn)
 WHERE id IN (SELECT tokenId FROM token_label WHERE labelId = :labelId);
 
 mergeLabelRelations:

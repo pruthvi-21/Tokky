@@ -1,0 +1,24 @@
+-- Preserve pre-existing duplicates; prevent any new active-name conflicts.
+CREATE TRIGGER token_entry_unique_name_insert
+BEFORE INSERT ON token_entry
+WHEN new.deletedOn IS NULL AND EXISTS (
+    SELECT 1 FROM token_entry
+    WHERE deletedOn IS NULL
+    AND issuer = new.issuer COLLATE NOCASE AND label = new.label COLLATE NOCASE
+)
+BEGIN
+    SELECT RAISE(ABORT, 'An account with this name already exists.');
+END;
+
+CREATE TRIGGER token_entry_unique_name_update
+BEFORE UPDATE OF issuer, label, deletedOn ON token_entry
+WHEN new.deletedOn IS NULL
+AND (old.deletedOn IS NOT NULL OR old.issuer != new.issuer COLLATE NOCASE OR old.label != new.label COLLATE NOCASE)
+AND EXISTS (
+    SELECT 1 FROM token_entry
+    WHERE deletedOn IS NULL AND id != old.id
+    AND issuer = new.issuer COLLATE NOCASE AND label = new.label COLLATE NOCASE
+)
+BEGIN
+    SELECT RAISE(ABORT, 'An account with this name already exists.');
+END;

@@ -19,14 +19,15 @@ class TokenFormValidator {
     }
 
     fun validateIssuer(issuer: String): Result {
-        return if (issuer.isNotEmpty()) Result.Success
+        return if (issuer.isNotBlank() && issuer.length <= ImportedTokenValidator.MAX_ISSUER_LENGTH && '\u0000' !in issuer) Result.Success
         else Result.Failure(Res.string.error_issuer_empty)
     }
 
     fun validateSecretKey(secretKey: String): Result {
         return try {
             val decoded = Base32.decode(secretKey)
-            if (decoded.isNotEmpty()) Result.Success
+            if (decoded.size > ImportedTokenValidator.MAX_SECRET_BYTES) Result.Failure(Res.string.error_secret_key_invalid)
+            else if (decoded.isNotEmpty()) Result.Success
             else Result.Failure(Res.string.error_secret_key_empty)
         } catch (e: Exception) {
             Result.Failure(Res.string.error_secret_key_invalid)
@@ -36,7 +37,7 @@ class TokenFormValidator {
     fun validatePeriod(period: String): Result {
         return when {
             period.isEmpty() -> Result.Failure(Res.string.error_period_empty)
-            period.toLongOrNull() == null || period.toLong() <= 0 -> Result.Failure(Res.string.error_period_invalid)
+            period.toLongOrNull() == null || period.toLong() !in 1..ImportedTokenValidator.MAX_PERIOD_SECONDS -> Result.Failure(Res.string.error_period_invalid)
             else -> Result.Success
         }
     }

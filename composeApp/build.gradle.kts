@@ -98,6 +98,10 @@ kotlin {
             implementation(libs.sqldelight.native.driver)
         }
 
+        androidUnitTest.dependencies {
+            implementation(libs.sqldelight.sqlite.driver)
+        }
+
         // Tests
         commonTest.dependencies {
             implementation(kotlin("test"))

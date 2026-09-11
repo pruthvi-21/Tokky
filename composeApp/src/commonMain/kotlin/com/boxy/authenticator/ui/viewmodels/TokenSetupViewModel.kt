@@ -30,6 +30,7 @@ import com.boxy.authenticator.domain.usecases.UpdateTokenUseCase
 import com.boxy.authenticator.ui.state.TokenSetupUiState
 import com.boxy.authenticator.ui.state.DataLoadState
 import com.boxy.authenticator.utils.TokenNameExistsException
+import com.boxy.authenticator.utils.StaleTokenException
 import com.boxy.authenticator.utils.cleanSecretKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -294,6 +295,7 @@ class TokenSetupViewModel(
     }
 
     private fun validateInputs(event: TokenFormEvent.Submit) {
+        if (_uiState.value.isSaving) return
         viewModelScope.launch {
             val issuerResult = formValidator.validateIssuer(_uiState.value.issuer)
             val secretKeyResult = formValidator.validateSecretKey(_uiState.value.secretKey)
@@ -399,6 +401,7 @@ class TokenSetupViewModel(
                 }
             } catch (e: Exception) {
                 logger.e("validateInputs: Exception while validating", e)
+                _uiState.value = _uiState.value.copy(operationError = getString(Res.string.account_save_failed))
             }
         }
     }
@@ -434,7 +437,10 @@ class TokenSetupViewModel(
             .onFailure {
                 logger.e("updateToken: Failed to update token", it)
                 _uiState.value = _uiState.value.copy(
-                    operationError = getString(Res.string.account_save_failed),
+                    operationError = when (it) {
+                        is TokenNameExistsException, is StaleTokenException -> it.message
+                        else -> getString(Res.string.account_save_failed)
+                    },
                 )
             }
         _uiState.value = _uiState.value.copy(isSaving = false)

@@ -3,13 +3,13 @@ package com.boxy.authenticator.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxy.authenticator.core.Logger
+import com.boxy.authenticator.utils.StaleTokenException
 import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.core.TokenLabels
 import com.boxy.authenticator.domain.usecases.DeleteTokensUseCase
 import com.boxy.authenticator.domain.usecases.FetchTokensUseCase
 import com.boxy.authenticator.domain.usecases.UpdateHotpCounterUseCase
 import com.boxy.authenticator.domain.usecases.UpdateTokensUseCase
-import com.boxy.authenticator.domain.models.otp.HotpInfo
 import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.ui.state.HomeUiState
 import com.boxy.authenticator.ui.state.DataLoadState
@@ -126,26 +126,8 @@ class HomeViewModel(
         viewModelScope.launch {
             val result = updateHotpCounterUseCase(tokenId, counter)
                 .onFailure { logger.e("Failed to update HOTP counter", it) }
-            if (result.isSuccess) {
-                val current = _uiState.value.tokensState as? DataLoadState.Data
-                if (current != null) {
-                    val updatedTokens = current.value.map { token ->
-                        val info = token.otpInfo
-                        if (token.id == tokenId && info is HotpInfo) {
-                            token.copy(
-                                otpInfo = HotpInfo(
-                                    secretKey = info.secretKey,
-                                    algorithm = info.algorithm,
-                                    digits = info.digits,
-                                    counter = counter,
-                                )
-                            )
-                        } else token
-                    }
-                    _uiState.value = _uiState.value.copy(
-                        tokensState = DataLoadState.Data(updatedTokens),
-                    )
-                }
+            if (result.isSuccess || result.exceptionOrNull() is StaleTokenException) {
+                refreshPersistedTokens()
             }
             onComplete(result.isSuccess)
         }
@@ -279,17 +261,32 @@ class HomeViewModel(
         viewModelScope.launch {
             updateTokensUseCase(updates).fold(
                 onSuccess = {
-                    val updatesById = updates.associateBy(TokenEntry::id)
-                    val tokens = currentTokens().map { updatesById[it.id] ?: it }
-                    finishSelectionOperation(tokens)
+                    val tokens = refreshPersistedTokens()
+                    if (tokens != null) finishSelectionOperation(tokens)
+                    else failSelectionOperation("Accounts saved, but could not be reloaded. Please retry.")
                 },
                 onFailure = {
+                    if (it is StaleTokenException) refreshPersistedTokens()
                     logger.e("Failed to update selected accounts", it)
                     failSelectionOperation("Unable to update selected accounts.")
                 },
             )
         }
     }
+
+    private suspend fun refreshPersistedTokens(): List<TokenEntry>? =
+        fetchTokensUseCase().fold(
+            onSuccess = { tokens ->
+                _uiState.value = _uiState.value.copy(tokensState = DataLoadState.Data(tokens))
+                tokens
+            },
+            onFailure = {
+                _uiState.value = _uiState.value.copy(
+                    tokensState = DataLoadState.Error("Unable to reload accounts. Please retry."),
+                )
+                null
+            },
+        )
 
     private fun currentTokens(): List<TokenEntry> =
         (_uiState.value.tokensState as? DataLoadState.Data)?.value.orEmpty()

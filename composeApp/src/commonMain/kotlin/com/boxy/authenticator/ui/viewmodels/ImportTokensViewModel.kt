@@ -17,6 +17,7 @@ import boxy_authenticator.composeapp.generated.resources.unsupported_aegis_encry
 import boxy_authenticator.composeapp.generated.resources.unsupported_aegis_token_type
 import boxy_authenticator.composeapp.generated.resources.unsupported_aegis_version
 import com.boxy.authenticator.core.Logger
+import com.boxy.authenticator.core.accountNameKey
 import com.boxy.authenticator.core.ImportedTokenValidator
 import com.boxy.authenticator.core.TokenEntryParser
 import com.boxy.authenticator.core.crypto.Crypto
@@ -269,8 +270,7 @@ class ImportTokensViewModel(
             ?.list
             ?.any {
                 it.token.id != token.id &&
-                        it.token.issuer.equals(token.issuer, ignoreCase = true) &&
-                        it.token.label.equals(token.label, ignoreCase = true)
+                        it.token.accountKey() == token.accountKey()
             } == true
         if (duplicateInSelectedFile) return true
 
@@ -354,7 +354,7 @@ class ImportTokensViewModel(
     }
 
     private fun TokenEntry.accountKey(): Pair<String, String> =
-        issuer.lowercase() to label.lowercase()
+        accountNameKey(issuer, label)
 
     private class FileTooLargeException : Exception()
 

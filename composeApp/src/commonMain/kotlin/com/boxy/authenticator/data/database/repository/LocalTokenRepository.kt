@@ -63,12 +63,12 @@ class LocalTokenRepository(
     }
 
     override suspend fun updateToken(token: TokenEntry) = withContext(dispatcher) {
-        tokenDao.updateToken(token.copy(updatedOn = Clock.System.now().toEpochMilliseconds()))
+        // The DAO compares the original revision before assigning the next timestamp.
+        tokenDao.updateToken(token)
     }
 
     override suspend fun updateTokens(tokens: List<TokenEntry>) = withContext(dispatcher) {
-        val updatedOn = Clock.System.now().toEpochMilliseconds()
-        tokenDao.updateTokens(tokens.map { it.copy(updatedOn = updatedOn) })
+        tokenDao.updateTokens(tokens)
     }
 
     override suspend fun replaceTokenWith(id: String, token: TokenEntry) = withContext(dispatcher) {

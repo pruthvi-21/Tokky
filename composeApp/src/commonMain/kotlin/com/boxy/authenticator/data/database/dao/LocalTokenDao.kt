@@ -11,6 +11,11 @@ import com.boxy.authenticator.domain.models.enums.AccountEntryMethod
 import com.boxy.authenticator.domain.models.otp.HotpInfo
 import com.boxy.authenticator.domain.models.otp.OtpInfo
 import com.boxy.authenticator.core.TokenLabels
+import com.boxy.authenticator.core.ImportedTokenValidator
+import com.boxy.authenticator.core.accountNameKey
+import com.boxy.authenticator.utils.TokenNameExistsException
+import com.boxy.authenticator.utils.StaleTokenException
+import kotlin.time.Clock
 
 class LocalTokenDao(database: TokenDatabase) : TokenDao {
     private val queries: TokenEntityQueries = database.tokenEntityQueries
@@ -41,7 +46,8 @@ class LocalTokenDao(database: TokenDatabase) : TokenDao {
 
     override fun insertToken(token: TokenEntry) {
         queries.transaction {
-            queries.insertTokenEntry(token)
+            validateInsert(token)
+            queries.insertTokenEntry(ImportedTokenValidator.validate(token))
             queries.replaceLabels(token)
         }
     }
@@ -92,43 +98,58 @@ class LocalTokenDao(database: TokenDatabase) : TokenDao {
     override fun insertTokens(tokens: List<TokenEntry>) {
         queries.transaction {
             tokens.forEach { token ->
-                queries.insertTokenEntry(token)
+                validateInsert(token)
+                queries.insertTokenEntry(ImportedTokenValidator.validate(token))
                 queries.replaceLabels(token)
             }
         }
     }
 
-    override fun updateToken(token: TokenEntry) {
-        queries.transaction {
-            queries.updateToken(
-                issuer = token.issuer,
-                label = token.label,
-                thumbnail = token.thumbnail.serialize(),
-                otpInfo = token.otpInfo.serialize(),
-                updatedOn = token.updatedOn,
-                isArchived = if (token.isArchived) 1L else 0L,
-                id = token.id
-            )
-            queries.replaceLabels(token)
-            queries.deleteUnusedLabels()
-        }
-    }
+    override fun updateToken(token: TokenEntry) = updateTokens(listOf(token))
 
     override fun updateTokens(tokens: List<TokenEntry>) {
         queries.transaction {
             tokens.forEach { token ->
-                queries.updateTokenEntry(token)
-                queries.replaceLabels(token)
+                val current = queries.findTokenWithId(token.id).executeAsOneOrNull()
+                    ?: throw StaleTokenException()
+                if (current.updatedOn != token.updatedOn) throw StaleTokenException()
+                val validated = ImportedTokenValidator.validate(token)
+                if (accountNameKey(current.issuer, current.label) != accountNameKey(token.issuer, token.label)) {
+                    checkNameAvailable(token)
+                }
+                val updated = validated.copy(updatedOn = nextUpdatedOn(current.updatedOn))
+                queries.updateTokenEntry(updated)
+                queries.replaceLabels(updated)
             }
             queries.deleteUnusedLabels()
         }
     }
 
+    private fun nextUpdatedOn(previous: Long): Long {
+        check(previous < Long.MAX_VALUE) { "Account revision is exhausted." }
+        return maxOf(Clock.System.now().toEpochMilliseconds(), previous + 1)
+    }
+
+    private fun checkNameAvailable(token: TokenEntry) {
+        val existing = queries.findTokenWithName(token.issuer, token.label).executeAsOneOrNull()
+        if (existing != null && existing.id != token.id) {
+            throw TokenNameExistsException(existing.toTokenEntry(emptySet()), "An account with this name already exists.")
+        }
+    }
+
+    private fun validateInsert(token: TokenEntry) {
+        require(token.deletedOn == null) { "New accounts must be active." }
+        checkNameAvailable(token)
+    }
+
     override fun replaceTokenWith(id: String, token: TokenEntry) {
         queries.transaction {
+            queries.findTokenWithId(id).executeAsOneOrNull() ?: throw StaleTokenException()
+            ImportedTokenValidator.validate(token)
             queries.deleteTokenLabels(id)
             queries.deleteTokenForReplacement(id)
-            queries.insertTokenEntry(token)
+            validateInsert(token)
+            queries.insertTokenEntry(ImportedTokenValidator.validate(token))
             queries.replaceLabels(token)
             queries.deleteUnusedLabels()
         }
@@ -136,10 +157,15 @@ class LocalTokenDao(database: TokenDatabase) : TokenDao {
 
     override fun updateHotpCounter(tokenId: String, counter: Long, updatedOn: Long) {
         queries.transaction {
-            val currentOtpInfoJson = queries.findTokenWithId(tokenId).executeAsOne().otpInfo
+            val current = queries.findTokenWithId(tokenId).executeAsOneOrNull()
+                ?: throw StaleTokenException()
+            val currentOtpInfoJson = current.otpInfo
 
             val otpInfoMap = OtpInfo.deserialize(currentOtpInfoJson)
             if (otpInfoMap !is HotpInfo) throw IllegalStateException("Not HOTP")
+            if (otpInfoMap.counter == Long.MAX_VALUE || counter < 0 || counter != otpInfoMap.counter + 1) {
+                throw StaleTokenException()
+            }
 
             val updatedOtpInfoJson = HotpInfo(
                 secretKey = otpInfoMap.secretKey,
@@ -148,7 +174,7 @@ class LocalTokenDao(database: TokenDatabase) : TokenDao {
                 counter = counter,
             ).serialize()
 
-            queries.updateHotpInfo(updatedOtpInfoJson, updatedOn, tokenId)
+            queries.updateHotpInfo(updatedOtpInfoJson, maxOf(updatedOn, nextUpdatedOn(current.updatedOn)), tokenId)
         }
     }
 

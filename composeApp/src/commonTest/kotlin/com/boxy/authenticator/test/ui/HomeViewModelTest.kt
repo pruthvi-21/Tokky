@@ -347,7 +347,7 @@ class HomeViewModelTest {
 }
 
 private class FakeTokenRepository(
-    private val tokens: List<TokenEntry> = emptyList(),
+    private var tokens: List<TokenEntry> = emptyList(),
     private val loadError: Throwable? = null,
     private val findError: Throwable? = null,
     private val hotpError: Throwable? = null,
@@ -373,6 +373,12 @@ private class FakeTokenRepository(
     override suspend fun updateHotpCounter(tokenId: String, counter: Long) {
         hotpError?.let { throw it }
         persistedHotpCounter = counter
+        tokens = tokens.map { token ->
+            if (token.id != tokenId) token else token.copy(
+                otpInfo = HotpInfo(token.otpInfo.secretKey, counter = counter),
+                updatedOn = token.updatedOn + 1,
+            )
+        }
     }
     override suspend fun getLabels() = emptyList<com.boxy.authenticator.domain.models.LabelSummary>()
     override suspend fun renameLabel(oldName: String, newName: String) = Unit

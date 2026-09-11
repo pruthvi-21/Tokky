@@ -15,7 +15,9 @@ interface TokenRepository {
     suspend fun deleteTokens(tokenIds: Set<String>)
     suspend fun restoreTokens(tokenIds: Set<String>)
     suspend fun permanentlyDeleteTokens(tokenIds: Set<String>)
+    /** updatedOn is the revision read by the caller; stale or recycled entries must fail atomically. */
     suspend fun updateToken(token: TokenEntry)
+    /** All entries must match their persisted updatedOn revisions, or the entire batch fails. */
     suspend fun updateTokens(tokens: List<TokenEntry>)
     suspend fun replaceTokenWith(id: String, token: TokenEntry)
     suspend fun updateHotpCounter(tokenId: String, counter: Long)

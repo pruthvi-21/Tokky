@@ -8,18 +8,18 @@ import com.boxy.authenticator.domain.models.otp.TotpInfo
 
 /** Applies trust-boundary checks to token data before it reaches the database or OTP engine. */
 object ImportedTokenValidator {
-    private const val MAX_ISSUER_LENGTH = 256
-    private const val MAX_LABEL_LENGTH = 512
-    private const val MAX_SECRET_BYTES = 1_024
-    private const val MAX_PERIOD_SECONDS = 86_400L
+    const val MAX_ISSUER_LENGTH = 256
+    const val MAX_LABEL_LENGTH = 512
+    const val MAX_SECRET_BYTES = 1_024
+    const val MAX_PERIOD_SECONDS = 86_400L
     private val SUPPORTED_ALGORITHMS = setOf("SHA1", "SHA256", "SHA512")
     private val VALID_COLOR = Regex("^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
     fun validate(token: TokenEntry): TokenEntry {
-        require(token.issuer.isNotBlank() && token.issuer.length <= MAX_ISSUER_LENGTH) {
+        require(token.issuer.isNotBlank() && token.issuer.length <= MAX_ISSUER_LENGTH && '\u0000' !in token.issuer) {
             "Invalid issuer."
         }
-        require(token.label.length <= MAX_LABEL_LENGTH) { "Invalid label." }
+        require(token.label.length <= MAX_LABEL_LENGTH && '\u0000' !in token.label) { "Invalid label." }
         require(token.otpInfo.secretKey.isNotEmpty() && token.otpInfo.secretKey.size <= MAX_SECRET_BYTES) {
             "Invalid secret key."
         }

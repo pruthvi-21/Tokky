@@ -18,6 +18,8 @@ class TokenFormValidatorTest {
     @Test
     fun `issuer must not be empty`() {
         assertFailure(validator.validateIssuer(""), Res.string.error_issuer_empty)
+        assertFailure(validator.validateIssuer("   "), Res.string.error_issuer_empty)
+        assertIs<TokenFormValidator.Result.Failure>(validator.validateIssuer("x".repeat(257)))
         assertIs<TokenFormValidator.Result.Success>(validator.validateIssuer("Example"))
     }
 
@@ -37,10 +39,11 @@ class TokenFormValidatorTest {
     @Test
     fun `period must be a positive integer`() {
         assertFailure(validator.validatePeriod(""), Res.string.error_period_empty)
-        listOf("0", "-1", "1.5", "abc").forEach {
+        listOf("0", "-1", "1.5", "abc", "86401", Long.MAX_VALUE.toString()).forEach {
             assertFailure(validator.validatePeriod(it), Res.string.error_period_invalid)
         }
         assertIs<TokenFormValidator.Result.Success>(validator.validatePeriod("30"))
+        assertIs<TokenFormValidator.Result.Success>(validator.validatePeriod("86400"))
     }
 
     @Test
