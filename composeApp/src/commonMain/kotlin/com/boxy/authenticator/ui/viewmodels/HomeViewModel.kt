@@ -3,16 +3,16 @@ package com.boxy.authenticator.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boxy.authenticator.core.Logger
-import com.boxy.authenticator.utils.StaleTokenException
 import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.core.TokenLabels
+import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.usecases.DeleteTokensUseCase
 import com.boxy.authenticator.domain.usecases.FetchTokensUseCase
 import com.boxy.authenticator.domain.usecases.UpdateHotpCounterUseCase
 import com.boxy.authenticator.domain.usecases.UpdateTokensUseCase
-import com.boxy.authenticator.domain.models.TokenEntry
-import com.boxy.authenticator.ui.state.HomeUiState
 import com.boxy.authenticator.ui.state.DataLoadState
+import com.boxy.authenticator.ui.state.HomeUiState
+import com.boxy.authenticator.utils.StaleTokenException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -58,8 +58,8 @@ class HomeViewModel(
                     val resolvedDefault = persistedDefault
                         ?.takeUnless { it == ARCHIVED_FILTER_KEY }
                         ?.let { saved ->
-                        availableLabels.firstOrNull { it.equals(saved, ignoreCase = true) }
-                    }
+                            availableLabels.firstOrNull { it.equals(saved, ignoreCase = true) }
+                        }
                     if (persistedDefault != null && resolvedDefault == null && !isArchivedDefault) {
                         runCatching { settingsDataStore.setDefaultLabelFilter(null) }
                             .onFailure { logger.e("Failed to clear a stale default label", it) }

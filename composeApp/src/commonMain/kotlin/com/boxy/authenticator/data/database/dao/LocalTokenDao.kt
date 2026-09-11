@@ -1,20 +1,20 @@
 package com.boxy.authenticator.data.database.dao
 
+import com.boxy.authenticator.core.ImportedTokenValidator
+import com.boxy.authenticator.core.TokenLabels
+import com.boxy.authenticator.core.accountNameKey
+import com.boxy.authenticator.db.GetRecycledTokens
 import com.boxy.authenticator.db.TokenDatabase
 import com.boxy.authenticator.db.TokenEntityQueries
 import com.boxy.authenticator.db.Token_entry
-import com.boxy.authenticator.db.GetRecycledTokens
-import com.boxy.authenticator.domain.models.Thumbnail
 import com.boxy.authenticator.domain.models.LabelSummary
+import com.boxy.authenticator.domain.models.Thumbnail
 import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.models.enums.AccountEntryMethod
 import com.boxy.authenticator.domain.models.otp.HotpInfo
 import com.boxy.authenticator.domain.models.otp.OtpInfo
-import com.boxy.authenticator.core.TokenLabels
-import com.boxy.authenticator.core.ImportedTokenValidator
-import com.boxy.authenticator.core.accountNameKey
-import com.boxy.authenticator.utils.TokenNameExistsException
 import com.boxy.authenticator.utils.StaleTokenException
+import com.boxy.authenticator.utils.TokenNameExistsException
 import kotlin.time.Clock
 
 class LocalTokenDao(database: TokenDatabase) : TokenDao {
@@ -133,7 +133,10 @@ class LocalTokenDao(database: TokenDatabase) : TokenDao {
     private fun checkNameAvailable(token: TokenEntry) {
         val existing = queries.findTokenWithName(token.issuer, token.label).executeAsOneOrNull()
         if (existing != null && existing.id != token.id) {
-            throw TokenNameExistsException(existing.toTokenEntry(emptySet()), "An account with this name already exists.")
+            throw TokenNameExistsException(
+                existing.toTokenEntry(emptySet()),
+                "An account with this name already exists."
+            )
         }
     }
 

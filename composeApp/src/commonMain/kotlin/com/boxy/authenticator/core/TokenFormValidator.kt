@@ -7,8 +7,8 @@ import boxy_authenticator.composeapp.generated.resources.error_period_empty
 import boxy_authenticator.composeapp.generated.resources.error_period_invalid
 import boxy_authenticator.composeapp.generated.resources.error_secret_key_empty
 import boxy_authenticator.composeapp.generated.resources.error_secret_key_invalid
-import com.boxy.authenticator.domain.models.otp.HotpInfo.Companion.COUNTER_MIN_VALUE
 import com.boxy.authenticator.core.encoding.Base32
+import com.boxy.authenticator.domain.models.otp.HotpInfo.Companion.COUNTER_MIN_VALUE
 import org.jetbrains.compose.resources.StringResource
 
 class TokenFormValidator {
@@ -37,7 +37,10 @@ class TokenFormValidator {
     fun validatePeriod(period: String): Result {
         return when {
             period.isEmpty() -> Result.Failure(Res.string.error_period_empty)
-            period.toLongOrNull() == null || period.toLong() !in 1..ImportedTokenValidator.MAX_PERIOD_SECONDS -> Result.Failure(Res.string.error_period_invalid)
+            period.toLongOrNull() == null || period.toLong() !in 1..ImportedTokenValidator.MAX_PERIOD_SECONDS -> Result.Failure(
+                Res.string.error_period_invalid
+            )
+
             else -> Result.Success
         }
     }

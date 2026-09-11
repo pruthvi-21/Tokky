@@ -81,10 +81,10 @@ fun SecuritySettings(
                     // Removing an unlock method is always safe. Adding one requires a successful
                     // biometric check so the toggle cannot be enabled by an unauthenticated tap.
                     val canProceed = !newValue || biometricsHelper.promptForBiometrics(
-                                title = getString(Res.string.biometric_prompt_title),
-                                reason = getString(Res.string.to_enable_biometrics),
-                                failureButtonText = getString(Res.string.cancel),
-                            )
+                        title = getString(Res.string.biometric_prompt_title),
+                        reason = getString(Res.string.to_enable_biometrics),
+                        failureButtonText = getString(Res.string.cancel),
+                    )
 
                     if (canProceed) {
                         onEvent(SettingChangeEvent.BiometricUnlockChanged(newValue))

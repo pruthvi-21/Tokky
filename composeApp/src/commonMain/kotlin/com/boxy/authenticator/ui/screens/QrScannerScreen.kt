@@ -68,7 +68,7 @@ fun QrScannerScreen(navController: NavController) {
                         scope.launch {
                             try {
                                 TokenEntryParser.buildFromUrl(result)
-                                if(!isScanComplete) {
+                                if (!isScanComplete) {
                                     isScanComplete = true
                                     delay(300)
                                     navController.navigate(Screen.TokenSetup(authUrl = result))

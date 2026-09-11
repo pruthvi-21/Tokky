@@ -1,20 +1,21 @@
 package com.boxy.authenticator.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,36 +24,35 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.twotone.Settings
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,58 +66,58 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import boxy_authenticator.composeapp.generated.resources.Res
-import boxy_authenticator.composeapp.generated.resources.app_name
-import boxy_authenticator.composeapp.generated.resources.archive
-import boxy_authenticator.composeapp.generated.resources.close
-import boxy_authenticator.composeapp.generated.resources.dismiss
-import boxy_authenticator.composeapp.generated.resources.empty_layout_text
-import boxy_authenticator.composeapp.generated.resources.expandable_fab_manual_title
-import boxy_authenticator.composeapp.generated.resources.expandable_fab_qr_title
-import boxy_authenticator.composeapp.generated.resources.no_backup_taken_msg
-import boxy_authenticator.composeapp.generated.resources.outdated_backup_msg
-import boxy_authenticator.composeapp.generated.resources.retry
-import boxy_authenticator.composeapp.generated.resources.title_settings
-import boxy_authenticator.composeapp.generated.resources.unable_to_load_accounts
 import boxy_authenticator.composeapp.generated.resources.all_labels
+import boxy_authenticator.composeapp.generated.resources.app_name
 import boxy_authenticator.composeapp.generated.resources.apply
 import boxy_authenticator.composeapp.generated.resources.apply_labels
 import boxy_authenticator.composeapp.generated.resources.apply_labels_message
+import boxy_authenticator.composeapp.generated.resources.archive
 import boxy_authenticator.composeapp.generated.resources.archive_selected_accounts
 import boxy_authenticator.composeapp.generated.resources.archive_selected_accounts_message
+import boxy_authenticator.composeapp.generated.resources.archived_accounts
+import boxy_authenticator.composeapp.generated.resources.close
+import boxy_authenticator.composeapp.generated.resources.default_label
 import boxy_authenticator.composeapp.generated.resources.delete_selected_accounts
 import boxy_authenticator.composeapp.generated.resources.delete_selected_accounts_message
+import boxy_authenticator.composeapp.generated.resources.dismiss
 import boxy_authenticator.composeapp.generated.resources.edit_selected_account
-import boxy_authenticator.composeapp.generated.resources.no_label_matches
+import boxy_authenticator.composeapp.generated.resources.empty_layout_text
+import boxy_authenticator.composeapp.generated.resources.expandable_fab_manual_title
+import boxy_authenticator.composeapp.generated.resources.expandable_fab_qr_title
 import boxy_authenticator.composeapp.generated.resources.make_default_label
 import boxy_authenticator.composeapp.generated.resources.make_default_label_message
 import boxy_authenticator.composeapp.generated.resources.manage_labels
 import boxy_authenticator.composeapp.generated.resources.more_options
 import boxy_authenticator.composeapp.generated.resources.move
 import boxy_authenticator.composeapp.generated.resources.move_to_recycle_bin
+import boxy_authenticator.composeapp.generated.resources.no_active_accounts
+import boxy_authenticator.composeapp.generated.resources.no_backup_taken_msg
+import boxy_authenticator.composeapp.generated.resources.no_label_matches
+import boxy_authenticator.composeapp.generated.resources.no_labels
+import boxy_authenticator.composeapp.generated.resources.outdated_backup_msg
 import boxy_authenticator.composeapp.generated.resources.recycle_bin
+import boxy_authenticator.composeapp.generated.resources.remove_default
 import boxy_authenticator.composeapp.generated.resources.remove_default_label
 import boxy_authenticator.composeapp.generated.resources.remove_default_label_message
-import boxy_authenticator.composeapp.generated.resources.set_default
-import boxy_authenticator.composeapp.generated.resources.remove_default
-import boxy_authenticator.composeapp.generated.resources.default_label
-import boxy_authenticator.composeapp.generated.resources.archived_accounts
-import boxy_authenticator.composeapp.generated.resources.no_active_accounts
-import boxy_authenticator.composeapp.generated.resources.no_labels
+import boxy_authenticator.composeapp.generated.resources.restore
 import boxy_authenticator.composeapp.generated.resources.restore_selected_accounts
 import boxy_authenticator.composeapp.generated.resources.restore_selected_accounts_message
-import boxy_authenticator.composeapp.generated.resources.restore
+import boxy_authenticator.composeapp.generated.resources.retry
 import boxy_authenticator.composeapp.generated.resources.selected_accounts
+import boxy_authenticator.composeapp.generated.resources.set_default
+import boxy_authenticator.composeapp.generated.resources.title_settings
+import boxy_authenticator.composeapp.generated.resources.unable_to_load_accounts
 import com.boxy.authenticator.core.Platform
+import com.boxy.authenticator.domain.models.enums.LabelVisibility
 import com.boxy.authenticator.ui.components.ExpandableFab
 import com.boxy.authenticator.ui.components.ExpandableFabItem
 import com.boxy.authenticator.ui.components.Toolbar
-import com.boxy.authenticator.ui.components.design.BoxyScaffold
 import com.boxy.authenticator.ui.components.design.BoxyButton
+import com.boxy.authenticator.ui.components.design.BoxyScaffold
 import com.boxy.authenticator.ui.components.dialogs.BoxyDialog
 import com.boxy.authenticator.ui.screens.home.TokensList
-import com.boxy.authenticator.ui.state.HomeUiState
-import com.boxy.authenticator.domain.models.enums.LabelVisibility
 import com.boxy.authenticator.ui.state.DataLoadState
+import com.boxy.authenticator.ui.state.HomeUiState
 import com.boxy.authenticator.ui.util.SystemBackHandler
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
@@ -360,39 +360,40 @@ fun HomeScreen(
                     label = "home-data-state",
                 ) { state ->
                     when (state) {
-                    DataLoadState.Initial, DataLoadState.Loading -> Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) { CircularProgressIndicator() }
-                    is DataLoadState.Data -> if (state.value.isNotEmpty()) {
-                        TokensList(
-                            tokensList = visibleTokens,
-                            viewedTokenIds = uiState.viewedTokenIds,
-                            onTokenViewed = onTokenViewed,
-                            onUpdateHotpCounter = onUpdateHotpCounter,
-                            selectedTokenIds = uiState.selectedTokenIds,
-                            onTokenLongPressed = onTokenLongPressed,
-                            onTokenSelectionToggle = onTokenSelectionToggle,
-                            labelVisibility = labelVisibility,
-                            headerContent = {
-                                LabelFilters(
-                                    uiState = uiState,
-                                    snapshot = labelSnapshot,
-                                    enabled = !uiState.isSelectionMode,
-                                    showLabelCounts = showLabelCounts,
-                                    onLabelFilterToggle = onLabelFilterToggle,
-                                    onDefaultLabelRequested = onDefaultLabelRequested,
-                                    onArchivedFilterToggle = onArchivedFilterToggle,
-                                    onDefaultArchivedRequested = onDefaultArchivedRequested,
-                                )
-                            },
-                            emptyMessage = stringResource(
-                                if (uiState.selectedLabels.isEmpty() &&
-                                    !uiState.isArchivedSelected && labelSnapshot.activeTokenCount == 0
-                                ) Res.string.no_active_accounts else Res.string.no_label_matches
-                            ),
-                        )
-                    } else {
+                        DataLoadState.Initial, DataLoadState.Loading -> Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) { CircularProgressIndicator() }
+
+                        is DataLoadState.Data -> if (state.value.isNotEmpty()) {
+                            TokensList(
+                                tokensList = visibleTokens,
+                                viewedTokenIds = uiState.viewedTokenIds,
+                                onTokenViewed = onTokenViewed,
+                                onUpdateHotpCounter = onUpdateHotpCounter,
+                                selectedTokenIds = uiState.selectedTokenIds,
+                                onTokenLongPressed = onTokenLongPressed,
+                                onTokenSelectionToggle = onTokenSelectionToggle,
+                                labelVisibility = labelVisibility,
+                                headerContent = {
+                                    LabelFilters(
+                                        uiState = uiState,
+                                        snapshot = labelSnapshot,
+                                        enabled = !uiState.isSelectionMode,
+                                        showLabelCounts = showLabelCounts,
+                                        onLabelFilterToggle = onLabelFilterToggle,
+                                        onDefaultLabelRequested = onDefaultLabelRequested,
+                                        onArchivedFilterToggle = onArchivedFilterToggle,
+                                        onDefaultArchivedRequested = onDefaultArchivedRequested,
+                                    )
+                                },
+                                emptyMessage = stringResource(
+                                    if (uiState.selectedLabels.isEmpty() &&
+                                        !uiState.isArchivedSelected && labelSnapshot.activeTokenCount == 0
+                                    ) Res.string.no_active_accounts else Res.string.no_label_matches
+                                ),
+                            )
+                        } else {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
@@ -406,21 +407,22 @@ fun HomeScreen(
                                     lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.5f
                                 )
                             }
-                    }
-                    is DataLoadState.Error ->
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            stringResource(Res.string.unable_to_load_accounts),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        BoxyButton(onClick = loadTokens, modifier = Modifier.padding(top = 12.dp)) {
-                            Text(stringResource(Res.string.retry))
                         }
-                    }
+
+                        is DataLoadState.Error ->
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    stringResource(Res.string.unable_to_load_accounts),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                                BoxyButton(onClick = loadTokens, modifier = Modifier.padding(top = 12.dp)) {
+                                    Text(stringResource(Res.string.retry))
+                                }
+                            }
                     }
                 }
             }

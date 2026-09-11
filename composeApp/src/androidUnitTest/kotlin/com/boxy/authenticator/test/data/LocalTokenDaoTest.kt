@@ -2,30 +2,45 @@ package com.boxy.authenticator.test.data
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.boxy.authenticator.core.ImportedTokenValidator
+import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.core.accountNameKey
 import com.boxy.authenticator.core.serialization.BoxyJson
 import com.boxy.authenticator.data.database.dao.LocalTokenDao
+import com.boxy.authenticator.data.database.repository.LocalTokenRepository
 import com.boxy.authenticator.db.TokenDatabase
 import com.boxy.authenticator.domain.models.ExportableTokenEntry
-import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.models.otp.HotpInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo
+import com.boxy.authenticator.domain.usecases.DeleteTokensUseCase
+import com.boxy.authenticator.domain.usecases.FetchTokensUseCase
+import com.boxy.authenticator.domain.usecases.UpdateHotpCounterUseCase
+import com.boxy.authenticator.domain.usecases.UpdateTokensUseCase
+import com.boxy.authenticator.test.InMemoryPreferenceStore
 import com.boxy.authenticator.test.testToken
+import com.boxy.authenticator.ui.viewmodels.HomeViewModel
 import com.boxy.authenticator.utils.StaleTokenException
 import com.boxy.authenticator.utils.TokenNameExistsException
-import com.boxy.authenticator.core.SettingsDataStore
-import com.boxy.authenticator.data.database.repository.LocalTokenRepository
-import com.boxy.authenticator.domain.usecases.*
-import com.boxy.authenticator.test.InMemoryPreferenceStore
-import com.boxy.authenticator.ui.viewmodels.HomeViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.*
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.io.File
-import kotlin.test.*
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFails
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class LocalTokenDaoTest {
     private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
@@ -57,10 +72,12 @@ class LocalTokenDaoTest {
     fun `import conflicts roll back the whole batch including labels`() {
         dao.insertToken(testToken())
         assertFailsWith<TokenNameExistsException> {
-            dao.insertTokens(listOf(
-                testToken(id = "new", issuer = "New", labels = setOf("New label")),
-                testToken(id = "duplicate"),
-            ))
+            dao.insertTokens(
+                listOf(
+                    testToken(id = "new", issuer = "New", labels = setOf("New label")),
+                    testToken(id = "duplicate"),
+                )
+            )
         }
         assertEquals(1, dao.getAllTokens().size)
         assertTrue(dao.getLabels().isEmpty())
@@ -70,10 +87,12 @@ class LocalTokenDaoTest {
     fun `SQL boundary rejects duplicate writes bypassing the DAO`() {
         dao.insertToken(testToken())
         assertFails {
-            driver.execute(null, """
+            driver.execute(
+                null, """
                 INSERT INTO token_entry SELECT 'duplicate', issuer, label, thumbnail, otpInfo,
                 createdOn, updatedOn, addedFrom, isArchived, deletedOn FROM token_entry
-            """.trimIndent(), 0)
+            """.trimIndent(), 0
+            )
         }
         dao.insertToken(testToken(id = "other", issuer = "Other"))
         assertFails {
@@ -106,7 +125,11 @@ class LocalTokenDaoTest {
         dao.updateHotpCounter(token.id, 5, 0)
         assertFailsWith<StaleTokenException> { dao.updateHotpCounter(token.id, 5, 0) }
         assertEquals(5L, (dao.findTokenWithId(token.id).otpInfo as HotpInfo).counter)
-        val exhausted = testToken(id = "exhausted", issuer = "Exhausted", otpInfo = HotpInfo(byteArrayOf(1), counter = Long.MAX_VALUE))
+        val exhausted = testToken(
+            id = "exhausted",
+            issuer = "Exhausted",
+            otpInfo = HotpInfo(byteArrayOf(1), counter = Long.MAX_VALUE)
+        )
         dao.insertToken(exhausted)
         assertFailsWith<StaleTokenException> { dao.updateHotpCounter(exhausted.id, Long.MIN_VALUE, 0) }
         assertEquals(Long.MAX_VALUE, (dao.findTokenWithId(exhausted.id).otpInfo as HotpInfo).counter)
@@ -206,7 +229,8 @@ class LocalTokenDaoTest {
         dao.insertToken(token)
         val stored = dao.findTokenWithId(token.id)
         val json = BoxyJson.encodeToString(ExportableTokenEntry.fromTokenEntry(stored))
-        val restored = ImportedTokenValidator.validate(BoxyJson.decodeFromString<ExportableTokenEntry>(json).toTokenEntry())
+        val restored =
+            ImportedTokenValidator.validate(BoxyJson.decodeFromString<ExportableTokenEntry>(json).toTokenEntry())
         assertEquals(stored.otpInfo.serialize(), restored.otpInfo.serialize())
         assertEquals(stored.labels, restored.labels)
     }
@@ -216,10 +240,12 @@ class LocalTokenDaoTest {
         driver.execute(null, "DROP TRIGGER token_entry_unique_name_insert", 0)
         driver.execute(null, "DROP TRIGGER token_entry_unique_name_update", 0)
         dao.insertToken(testToken())
-        driver.execute(null, """
+        driver.execute(
+            null, """
             INSERT INTO token_entry SELECT 'legacy-duplicate', issuer, label, thumbnail, otpInfo,
             createdOn, updatedOn, addedFrom, isArchived, deletedOn FROM token_entry
-        """.trimIndent(), 0)
+        """.trimIndent(), 0
+        )
         TokenDatabase.Schema.migrate(driver, 5, 6)
         assertEquals(2, dao.getAllTokens().size)
         dao.updateToken(dao.findTokenWithId("legacy-duplicate").copy(isArchived = true))
@@ -251,13 +277,15 @@ class LocalTokenDaoTest {
     @Test
     fun `original database migrates through every version without losing entries`() {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { legacy ->
-            legacy.execute(null, """
+            legacy.execute(
+                null, """
                 CREATE TABLE token_entry (
                     id TEXT NOT NULL PRIMARY KEY, issuer TEXT NOT NULL, label TEXT NOT NULL,
                     thumbnail TEXT NOT NULL, otpInfo TEXT NOT NULL, createdOn INTEGER NOT NULL,
                     updatedOn INTEGER NOT NULL, addedFrom TEXT NOT NULL
                 )
-            """.trimIndent(), 0)
+            """.trimIndent(), 0
+            )
             val token = testToken()
             legacy.execute(null, "INSERT INTO token_entry VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 8) {
                 bindString(0, token.id)
@@ -291,7 +319,8 @@ class LocalTokenDaoTest {
         assertEquals(original.otpInfo.serialize(), restored.otpInfo.serialize())
         assertEquals(original.labels, restored.labels)
         assertTrue(restored.updatedOn > original.updatedOn)
-        val replacement = testToken(id = "replacement", labels = setOf("Replacement"), otpInfo = HotpInfo(byteArrayOf(2)))
+        val replacement =
+            testToken(id = "replacement", labels = setOf("Replacement"), otpInfo = HotpInfo(byteArrayOf(2)))
         dao.replaceTokenWith(original.id, replacement)
         assertEquals(listOf("replacement"), dao.getAllTokens().map { it.id })
         assertEquals(replacement.otpInfo.serialize(), dao.findTokenWithId(replacement.id).otpInfo.serialize())

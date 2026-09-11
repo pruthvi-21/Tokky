@@ -8,18 +8,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,21 +38,21 @@ import boxy_authenticator.composeapp.generated.resources.export_accounts
 import boxy_authenticator.composeapp.generated.resources.export_failed
 import boxy_authenticator.composeapp.generated.resources.export_to
 import boxy_authenticator.composeapp.generated.resources.i_understand_the_risk
+import boxy_authenticator.composeapp.generated.resources.no_accounts_to_export
 import boxy_authenticator.composeapp.generated.resources.plain_text_file
 import boxy_authenticator.composeapp.generated.resources.recommended
-import boxy_authenticator.composeapp.generated.resources.no_accounts_to_export
 import boxy_authenticator.composeapp.generated.resources.retry
 import boxy_authenticator.composeapp.generated.resources.warning
 import boxy_authenticator.composeapp.generated.resources.warning_backup_encryption
 import boxy_authenticator.composeapp.generated.resources.warning_no_backup_encryption
 import com.boxy.authenticator.ui.components.Toolbar
+import com.boxy.authenticator.ui.components.design.BoxyButton
 import com.boxy.authenticator.ui.components.design.BoxyPreferenceScreen
 import com.boxy.authenticator.ui.components.design.BoxyScaffold
-import com.boxy.authenticator.ui.components.design.BoxyButton
 import com.boxy.authenticator.ui.components.dialogs.BoxyDialog
 import com.boxy.authenticator.ui.components.dialogs.SetPasswordDialog
-import com.boxy.authenticator.ui.state.ExportUiState
 import com.boxy.authenticator.ui.state.DataLoadState
+import com.boxy.authenticator.ui.state.ExportUiState
 import com.jw.preferences.Preference
 import com.jw.preferences.PreferenceCategory
 import kotlinx.coroutines.launch
@@ -104,59 +103,61 @@ fun ExportTokensScreen(
                 .fillMaxSize(),
         ) { state ->
             when (state) {
-            DataLoadState.Initial, DataLoadState.Loading -> Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) { CircularProgressIndicator() }
-            is DataLoadState.Error -> Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-            ) {
-                Text(stringResource(Res.string.error_fetching_tokens), color = MaterialTheme.colorScheme.error)
-                BoxyButton(onClick = retryLoad, modifier = Modifier.padding(top = 12.dp)) {
-                    Text(stringResource(Res.string.retry))
-                }
-            }
-            is DataLoadState.Data -> {
-            if (state.value.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(Res.string.no_accounts_to_export))
-                }
-            } else {
-            val exportEnabled = state.value.isNotEmpty() && !uiState.isExporting
-            BoxyPreferenceScreen {
-                item {
-                    PreferenceCategory(
-                        title = { Text(stringResource(Res.string.export_to)) },
-                    ) {
-                        Preference(
-                            title = {
-                                Text(
-                                    stringResource(Res.string.encrypted_backup_file) +
-                                            " (${stringResource(Res.string.recommended)})"
-                                )
-                            },
-                            enabled = exportEnabled,
-                            onClick = {
-                                snackbarHostState.currentSnackbarData?.dismiss()
-                                showSetPasswordDialog(true)
-                            },
-                        )
-                        Preference(
-                            title = { Text(stringResource(Res.string.plain_text_file)) },
-                            enabled = exportEnabled,
-                            onClick = {
-                                snackbarHostState.currentSnackbarData?.dismiss()
-                                showPlainTextWarningDialog(true)
-                            },
-                            showDivider = false,
-                        )
+                DataLoadState.Initial, DataLoadState.Loading -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) { CircularProgressIndicator() }
+
+                is DataLoadState.Error -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                ) {
+                    Text(stringResource(Res.string.error_fetching_tokens), color = MaterialTheme.colorScheme.error)
+                    BoxyButton(onClick = retryLoad, modifier = Modifier.padding(top = 12.dp)) {
+                        Text(stringResource(Res.string.retry))
                     }
                 }
-            }
-            }
-            }
+
+                is DataLoadState.Data -> {
+                    if (state.value.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(stringResource(Res.string.no_accounts_to_export))
+                        }
+                    } else {
+                        val exportEnabled = state.value.isNotEmpty() && !uiState.isExporting
+                        BoxyPreferenceScreen {
+                            item {
+                                PreferenceCategory(
+                                    title = { Text(stringResource(Res.string.export_to)) },
+                                ) {
+                                    Preference(
+                                        title = {
+                                            Text(
+                                                stringResource(Res.string.encrypted_backup_file) +
+                                                        " (${stringResource(Res.string.recommended)})"
+                                            )
+                                        },
+                                        enabled = exportEnabled,
+                                        onClick = {
+                                            snackbarHostState.currentSnackbarData?.dismiss()
+                                            showSetPasswordDialog(true)
+                                        },
+                                    )
+                                    Preference(
+                                        title = { Text(stringResource(Res.string.plain_text_file)) },
+                                        enabled = exportEnabled,
+                                        onClick = {
+                                            snackbarHostState.currentSnackbarData?.dismiss()
+                                            showPlainTextWarningDialog(true)
+                                        },
+                                        showDivider = false,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

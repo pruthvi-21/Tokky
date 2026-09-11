@@ -39,8 +39,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -72,19 +72,16 @@ import com.boxy.authenticator.domain.models.enums.LabelVisibility
 import com.boxy.authenticator.domain.models.enums.shouldShowLabels
 import com.boxy.authenticator.domain.models.otp.HotpInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo
-import com.boxy.authenticator.ui.components.design.BoxyProgressBar
 import com.boxy.authenticator.ui.components.OtpTextView
 import com.boxy.authenticator.ui.components.TokenThumbnail
+import com.boxy.authenticator.ui.components.design.BoxyProgressBar
 import com.boxy.authenticator.utils.getInitials
 import com.boxy.authenticator.utils.moveRight
 import com.boxy.authenticator.utils.name
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.set
 
 private const val SLIDE_DURATION = 150
 

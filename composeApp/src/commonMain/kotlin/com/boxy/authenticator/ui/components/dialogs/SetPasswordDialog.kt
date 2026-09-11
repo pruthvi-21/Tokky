@@ -33,8 +33,8 @@ import boxy_authenticator.composeapp.generated.resources.ok
 import boxy_authenticator.composeapp.generated.resources.password
 import boxy_authenticator.composeapp.generated.resources.password_cant_be_empty
 import boxy_authenticator.composeapp.generated.resources.password_didnt_match
-import boxy_authenticator.composeapp.generated.resources.password_too_short
 import boxy_authenticator.composeapp.generated.resources.password_must_be_numeric
+import boxy_authenticator.composeapp.generated.resources.password_too_short
 import boxy_authenticator.composeapp.generated.resources.set_password
 import boxy_authenticator.composeapp.generated.resources.show_password
 import com.boxy.authenticator.ui.components.design.BoxyTextField
@@ -75,6 +75,7 @@ fun SetPasswordDialog(
                     password.length < 6 -> getString(Res.string.password_too_short, 6)
                     numericOnly && password.any { !it.isDigit() } ->
                         getString(Res.string.password_must_be_numeric)
+
                     else -> null
                 }
 

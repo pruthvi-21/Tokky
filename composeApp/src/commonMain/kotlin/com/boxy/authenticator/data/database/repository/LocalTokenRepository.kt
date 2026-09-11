@@ -1,9 +1,9 @@
 package com.boxy.authenticator.data.database.repository
 
 import com.boxy.authenticator.data.database.dao.TokenDao
-import com.boxy.authenticator.domain.repository.TokenRepository
-import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.models.LabelSummary
+import com.boxy.authenticator.domain.models.TokenEntry
+import com.boxy.authenticator.domain.repository.TokenRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

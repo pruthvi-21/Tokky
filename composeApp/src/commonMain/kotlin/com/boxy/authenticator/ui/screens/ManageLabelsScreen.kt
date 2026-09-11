@@ -38,8 +38,8 @@ import boxy_authenticator.composeapp.generated.resources.remove
 import boxy_authenticator.composeapp.generated.resources.rename
 import boxy_authenticator.composeapp.generated.resources.rename_label
 import boxy_authenticator.composeapp.generated.resources.retry
-import com.boxy.authenticator.ui.components.Toolbar
 import com.boxy.authenticator.domain.models.LabelSummary
+import com.boxy.authenticator.ui.components.Toolbar
 import com.boxy.authenticator.ui.components.design.BoxyButton
 import com.boxy.authenticator.ui.components.design.BoxyScaffold
 import com.boxy.authenticator.ui.components.design.BoxyTextField

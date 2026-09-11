@@ -5,21 +5,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.empty_content
-import boxy_authenticator.composeapp.generated.resources.failed_to_decrypt
-import boxy_authenticator.composeapp.generated.resources.failed_to_read_file
-import boxy_authenticator.composeapp.generated.resources.failed_to_parse_file
 import boxy_authenticator.composeapp.generated.resources.failed_to_check_duplicates
+import boxy_authenticator.composeapp.generated.resources.failed_to_decrypt
+import boxy_authenticator.composeapp.generated.resources.failed_to_parse_file
+import boxy_authenticator.composeapp.generated.resources.failed_to_read_file
 import boxy_authenticator.composeapp.generated.resources.file_too_large
 import boxy_authenticator.composeapp.generated.resources.import_failed
-import boxy_authenticator.composeapp.generated.resources.no_tokens_to_import
 import boxy_authenticator.composeapp.generated.resources.invalid_aegis_backup
+import boxy_authenticator.composeapp.generated.resources.no_tokens_to_import
 import boxy_authenticator.composeapp.generated.resources.unsupported_aegis_encryption
 import boxy_authenticator.composeapp.generated.resources.unsupported_aegis_token_type
 import boxy_authenticator.composeapp.generated.resources.unsupported_aegis_version
-import com.boxy.authenticator.core.Logger
-import com.boxy.authenticator.core.accountNameKey
 import com.boxy.authenticator.core.ImportedTokenValidator
+import com.boxy.authenticator.core.Logger
 import com.boxy.authenticator.core.TokenEntryParser
+import com.boxy.authenticator.core.accountNameKey
 import com.boxy.authenticator.core.crypto.Crypto
 import com.boxy.authenticator.core.importing.AegisImporter
 import com.boxy.authenticator.core.importing.InvalidAegisPasswordException
@@ -32,17 +32,17 @@ import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.usecases.FetchTokenByNameUseCase
 import com.boxy.authenticator.domain.usecases.FetchTokensUseCase
 import com.boxy.authenticator.domain.usecases.InsertTokensUseCase
-import com.boxy.authenticator.utils.name
 import com.boxy.authenticator.utils.Constants
+import com.boxy.authenticator.utils.name
 import io.github.vinceglb.filekit.core.FileKit
-import io.github.vinceglb.filekit.core.PlatformFile
 import io.github.vinceglb.filekit.core.PickerType
+import io.github.vinceglb.filekit.core.PlatformFile
 import io.github.vinceglb.filekit.core.pickFile
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
@@ -75,6 +75,7 @@ class ImportTokensViewModel(
             val isImporting: Boolean = false,
             val errorMessage: String? = null,
         ) : UiState()
+
         data class RequestPassword(val file: PlatformFile, val format: ImportFormat) : UiState()
     }
 
@@ -119,6 +120,7 @@ class ImportTokensViewModel(
                                 if (tokens.isEmpty()) throw NoTokensException()
                                 UiState.FileLoaded(buildImportListFromTokens(tokens).getOrThrow())
                             }
+
                             is AegisImporter.Inspection.Encrypted -> UiState.RequestPassword(file, format)
                         }
                     } else {
@@ -183,11 +185,13 @@ class ImportTokensViewModel(
                 } else {
                     logger.e("Encrypted backup validation failed")
                 }
-                UiState.Error(if (format == ImportFormat.AEGIS) messageForAegisError(it) else {
-                    if (it is DuplicateCheckException) getString(Res.string.failed_to_check_duplicates)
-                    else if (it is NoTokensException) getString(Res.string.no_tokens_to_import)
-                    else getString(Res.string.failed_to_decrypt)
-                })
+                UiState.Error(
+                    if (format == ImportFormat.AEGIS) messageForAegisError(it) else {
+                        if (it is DuplicateCheckException) getString(Res.string.failed_to_check_duplicates)
+                        else if (it is NoTokensException) getString(Res.string.no_tokens_to_import)
+                        else getString(Res.string.failed_to_decrypt)
+                    }
+                )
             },
         )
     }
@@ -229,19 +233,19 @@ class ImportTokensViewModel(
     private suspend fun buildImportListFromTokens(tokens: List<TokenEntry>): Result<List<ImportItem>> {
         return fetchTokensUseCase()
             .map { data ->
-                    val existingAccountNames = data.map { it.accountKey() }.toSet()
-                    val importedAccountNames = mutableSetOf<Pair<String, String>>()
-                    tokens.map { token ->
-                        val accountKey = token.accountKey()
-                        val isDuplicate = accountKey in existingAccountNames ||
-                                !importedAccountNames.add(accountKey)
-                        ImportItem(
-                            token = token,
-                            isChecked = !isDuplicate,
-                            isDuplicate = isDuplicate,
-                        )
-                    }.sortedBy { it.token.name }
-                }
+                val existingAccountNames = data.map { it.accountKey() }.toSet()
+                val importedAccountNames = mutableSetOf<Pair<String, String>>()
+                tokens.map { token ->
+                    val accountKey = token.accountKey()
+                    val isDuplicate = accountKey in existingAccountNames ||
+                            !importedAccountNames.add(accountKey)
+                    ImportItem(
+                        token = token,
+                        isChecked = !isDuplicate,
+                        isDuplicate = isDuplicate,
+                    )
+                }.sortedBy { it.token.name }
+            }
             .recoverCatching { throw DuplicateCheckException(it) }
     }
 

@@ -1,7 +1,7 @@
 package com.boxy.authenticator.domain.repository
 
-import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.models.LabelSummary
+import com.boxy.authenticator.domain.models.TokenEntry
 
 interface TokenRepository {
     suspend fun getAllTokens(): List<TokenEntry>
@@ -15,8 +15,10 @@ interface TokenRepository {
     suspend fun deleteTokens(tokenIds: Set<String>)
     suspend fun restoreTokens(tokenIds: Set<String>)
     suspend fun permanentlyDeleteTokens(tokenIds: Set<String>)
+
     /** updatedOn is the revision read by the caller; stale or recycled entries must fail atomically. */
     suspend fun updateToken(token: TokenEntry)
+
     /** All entries must match their persisted updatedOn revisions, or the entire batch fails. */
     suspend fun updateTokens(tokens: List<TokenEntry>)
     suspend fun replaceTokenWith(id: String, token: TokenEntry)

@@ -3,21 +3,21 @@ package com.boxy.authenticator.test.ui
 import com.boxy.authenticator.core.SettingsDataStore
 import com.boxy.authenticator.core.TokenFormValidator
 import com.boxy.authenticator.data.preferences.PreferenceStore
-import com.boxy.authenticator.domain.repository.TokenRepository
 import com.boxy.authenticator.domain.models.Thumbnail
 import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.models.enums.AccountEntryMethod
 import com.boxy.authenticator.domain.models.otp.HotpInfo
-import com.boxy.authenticator.domain.usecases.FetchTokensUseCase
+import com.boxy.authenticator.domain.repository.TokenRepository
 import com.boxy.authenticator.domain.usecases.DeleteTokenUseCase
-import com.boxy.authenticator.domain.usecases.FetchTokenByIdUseCase
+import com.boxy.authenticator.domain.usecases.DeleteTokensUseCase
 import com.boxy.authenticator.domain.usecases.FetchLabelsUseCase
+import com.boxy.authenticator.domain.usecases.FetchTokenByIdUseCase
+import com.boxy.authenticator.domain.usecases.FetchTokensUseCase
 import com.boxy.authenticator.domain.usecases.InsertTokenUseCase
 import com.boxy.authenticator.domain.usecases.ReplaceExistingTokenUseCase
-import com.boxy.authenticator.domain.usecases.UpdateTokenUseCase
 import com.boxy.authenticator.domain.usecases.UpdateHotpCounterUseCase
+import com.boxy.authenticator.domain.usecases.UpdateTokenUseCase
 import com.boxy.authenticator.domain.usecases.UpdateTokensUseCase
-import com.boxy.authenticator.domain.usecases.DeleteTokensUseCase
 import com.boxy.authenticator.test.RecordingTokenRepository
 import com.boxy.authenticator.ui.state.DataLoadState
 import com.boxy.authenticator.ui.state.HomeUiState
@@ -34,8 +34,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -360,6 +360,7 @@ private class FakeTokenRepository(
     override suspend fun getTokensCount() = tokens.size.toLong()
     override suspend fun findTokenWithId(tokenId: String): TokenEntry =
         findError?.let { throw it } ?: error("Not used")
+
     override suspend fun findTokenWithName(issuer: String, label: String): TokenEntry? = null
     override suspend fun insertTokens(tokens: List<TokenEntry>) = Unit
     override suspend fun insertToken(token: TokenEntry) = Unit
@@ -380,6 +381,7 @@ private class FakeTokenRepository(
             )
         }
     }
+
     override suspend fun getLabels() = emptyList<com.boxy.authenticator.domain.models.LabelSummary>()
     override suspend fun renameLabel(oldName: String, newName: String) = Unit
     override suspend fun deleteLabel(name: String) = Unit
@@ -388,14 +390,29 @@ private class FakeTokenRepository(
 private class FakePreferenceStore : PreferenceStore {
     private val values = mutableMapOf<String, Any>()
 
-    override fun putBoolean(key: String, value: Boolean) { values[key] = value }
+    override fun putBoolean(key: String, value: Boolean) {
+        values[key] = value
+    }
+
     override fun getBoolean(key: String, defaultValue: Boolean) = values[key] as? Boolean ?: defaultValue
-    override fun putString(key: String, value: String) { values[key] = value }
+    override fun putString(key: String, value: String) {
+        values[key] = value
+    }
+
     override fun getString(key: String, defaultValue: String?) = values[key] as? String ?: defaultValue
-    override fun putInt(key: String, value: Int) { values[key] = value }
+    override fun putInt(key: String, value: Int) {
+        values[key] = value
+    }
+
     override fun getInt(key: String, defaultValue: Int) = values[key] as? Int ?: defaultValue
-    override fun putLong(key: String, value: Long) { values[key] = value }
+    override fun putLong(key: String, value: Long) {
+        values[key] = value
+    }
+
     override fun getLong(key: String, defaultValue: Long) = values[key] as? Long ?: defaultValue
-    override fun remove(key: String) { values.remove(key) }
+    override fun remove(key: String) {
+        values.remove(key)
+    }
+
     override fun clear() = values.clear()
 }

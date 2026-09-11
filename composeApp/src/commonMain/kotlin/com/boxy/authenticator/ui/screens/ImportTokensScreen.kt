@@ -7,8 +7,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -29,13 +30,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,9 +43,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import boxy_authenticator.composeapp.generated.resources.Res
-import boxy_authenticator.composeapp.generated.resources.encrypted_backup_file
+import boxy_authenticator.composeapp.generated.resources.aegis_backup_file
 import boxy_authenticator.composeapp.generated.resources.cancel
 import boxy_authenticator.composeapp.generated.resources.duplicate_warning_message
+import boxy_authenticator.composeapp.generated.resources.encrypted_backup_file
 import boxy_authenticator.composeapp.generated.resources.enter_password_to_decrypt
 import boxy_authenticator.composeapp.generated.resources.enter_your_password
 import boxy_authenticator.composeapp.generated.resources.hint_issuer
@@ -55,10 +56,9 @@ import boxy_authenticator.composeapp.generated.resources.import_from
 import boxy_authenticator.composeapp.generated.resources.import_label
 import boxy_authenticator.composeapp.generated.resources.loading_file
 import boxy_authenticator.composeapp.generated.resources.plain_text_file
-import boxy_authenticator.composeapp.generated.resources.aegis_backup_file
 import boxy_authenticator.composeapp.generated.resources.proceed
-import boxy_authenticator.composeapp.generated.resources.retry
 import boxy_authenticator.composeapp.generated.resources.rename
+import boxy_authenticator.composeapp.generated.resources.retry
 import boxy_authenticator.composeapp.generated.resources.warning
 import com.boxy.authenticator.core.TokenFormValidator
 import com.boxy.authenticator.domain.models.TokenEntry
@@ -119,138 +119,138 @@ fun ImportTokensScreen(navController: NavController) {
                 label = "import-data-state",
                 modifier = Modifier.fillMaxSize(),
             ) { uiState ->
-            when (uiState) {
-                ImportTokensViewModel.UiState.Initial -> {
+                when (uiState) {
+                    ImportTokensViewModel.UiState.Initial -> {
 
-                    BoxyPreferenceScreen {
-                        item {
-                            PreferenceCategory(
-                                title = { Text(stringResource(Res.string.import_from)) }
-                            ) {
-                                Preference(
-                                    title = {
-                                        Text(stringResource(Res.string.encrypted_backup_file) + " (.encrypted)")
-                                    },
-                                    onClick = {
-                                        importTokensViewModel.pickFile(ImportTokensViewModel.ImportFormat.ENCRYPTED_BACKUP)
-                                        snackbarHostState.currentSnackbarData?.dismiss()
-                                    },
-                                )
-                                Preference(
-                                    title = { Text(stringResource(Res.string.plain_text_file) + " (.txt)") },
-                                    onClick = {
-                                        importTokensViewModel.pickFile(ImportTokensViewModel.ImportFormat.PLAIN_TEXT)
-                                        snackbarHostState.currentSnackbarData?.dismiss()
-                                    },
-                                )
-                                Preference(
-                                    title = { Text(stringResource(Res.string.aegis_backup_file) + " (.json)") },
-                                    onClick = {
-                                        importTokensViewModel.pickFile(ImportTokensViewModel.ImportFormat.AEGIS)
-                                        snackbarHostState.currentSnackbarData?.dismiss()
-                                    },
-                                    showDivider = false,
-                                )
+                        BoxyPreferenceScreen {
+                            item {
+                                PreferenceCategory(
+                                    title = { Text(stringResource(Res.string.import_from)) }
+                                ) {
+                                    Preference(
+                                        title = {
+                                            Text(stringResource(Res.string.encrypted_backup_file) + " (.encrypted)")
+                                        },
+                                        onClick = {
+                                            importTokensViewModel.pickFile(ImportTokensViewModel.ImportFormat.ENCRYPTED_BACKUP)
+                                            snackbarHostState.currentSnackbarData?.dismiss()
+                                        },
+                                    )
+                                    Preference(
+                                        title = { Text(stringResource(Res.string.plain_text_file) + " (.txt)") },
+                                        onClick = {
+                                            importTokensViewModel.pickFile(ImportTokensViewModel.ImportFormat.PLAIN_TEXT)
+                                            snackbarHostState.currentSnackbarData?.dismiss()
+                                        },
+                                    )
+                                    Preference(
+                                        title = { Text(stringResource(Res.string.aegis_backup_file) + " (.json)") },
+                                        onClick = {
+                                            importTokensViewModel.pickFile(ImportTokensViewModel.ImportFormat.AEGIS)
+                                            snackbarHostState.currentSnackbarData?.dismiss()
+                                        },
+                                        showDivider = false,
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                ImportTokensViewModel.UiState.Loading -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        Text(
-                            stringResource(Res.string.loading_file),
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
-                    }
-                }
-
-                is ImportTokensViewModel.UiState.Error -> Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(uiState.message, color = MaterialTheme.colorScheme.error)
-                    BoxyButton(
-                        onClick = importTokensViewModel::setInitialState,
-                        modifier = Modifier.padding(top = 12.dp),
-                    ) { Text(stringResource(Res.string.retry)) }
-                }
-
-                is ImportTokensViewModel.UiState.FileLoaded -> {
-                    LaunchedEffect(uiState.errorMessage) {
-                        val message = uiState.errorMessage ?: return@LaunchedEffect
-                        snackbarHostState.showSnackbar(message)
-                        importTokensViewModel.clearErrorMessage()
-                    }
-                    val tokensToImport = uiState.list
-
-                    DuplicateTokensWarningDialog(
-                        showDialog = importTokensViewModel.showDuplicateWarningDialog.value,
-                        tokensToImport = tokensToImport,
-                        onDismissRequest = {
-                            importTokensViewModel.showDuplicateWarningDialog.value = false
-                        },
-                        onConfirmRequest = {
-                            importTokensViewModel.importAccounts { success ->
-                                importTokensViewModel.showDuplicateWarningDialog.value = false
-                                if (success) navController.navigateUp()
-                            }
-                        }
-                    )
-
-                    LazyColumn(
-                        modifier = Modifier.weight(1f)
+                    ImportTokensViewModel.UiState.Loading -> Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        items(tokensToImport, key = { it.token.id }) {
-                            ImportListItem(
-                                item = it,
-                                importTokensViewModel = importTokensViewModel
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator()
+                            Text(
+                                stringResource(Res.string.loading_file),
+                                modifier = Modifier.padding(top = 12.dp),
                             )
                         }
                     }
-                    BoxyButton(
-                        onClick = {
-                            if (tokensToImport.any { it.isDuplicate }) {
-                                importTokensViewModel.showDuplicateWarningDialog.value = true
-                            } else {
+
+                    is ImportTokensViewModel.UiState.Error -> Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(uiState.message, color = MaterialTheme.colorScheme.error)
+                        BoxyButton(
+                            onClick = importTokensViewModel::setInitialState,
+                            modifier = Modifier.padding(top = 12.dp),
+                        ) { Text(stringResource(Res.string.retry)) }
+                    }
+
+                    is ImportTokensViewModel.UiState.FileLoaded -> {
+                        LaunchedEffect(uiState.errorMessage) {
+                            val message = uiState.errorMessage ?: return@LaunchedEffect
+                            snackbarHostState.showSnackbar(message)
+                            importTokensViewModel.clearErrorMessage()
+                        }
+                        val tokensToImport = uiState.list
+
+                        DuplicateTokensWarningDialog(
+                            showDialog = importTokensViewModel.showDuplicateWarningDialog.value,
+                            tokensToImport = tokensToImport,
+                            onDismissRequest = {
+                                importTokensViewModel.showDuplicateWarningDialog.value = false
+                            },
+                            onConfirmRequest = {
                                 importTokensViewModel.importAccounts { success ->
                                     importTokensViewModel.showDuplicateWarningDialog.value = false
                                     if (success) navController.navigateUp()
                                 }
                             }
-                        },
-                        enabled = tokensToImport.any { it.isChecked } && !uiState.isImporting,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 10.dp)
-                            .heightIn(min = 46.dp)
-                    ) {
-                        if (uiState.isImporting) {
-                            CircularProgressIndicator(modifier = Modifier.height(24.dp))
-                        } else {
-                            Text(text = stringResource(Res.string.import_label))
+                        )
+
+                        LazyColumn(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            items(tokensToImport, key = { it.token.id }) {
+                                ImportListItem(
+                                    item = it,
+                                    importTokensViewModel = importTokensViewModel
+                                )
+                            }
+                        }
+                        BoxyButton(
+                            onClick = {
+                                if (tokensToImport.any { it.isDuplicate }) {
+                                    importTokensViewModel.showDuplicateWarningDialog.value = true
+                                } else {
+                                    importTokensViewModel.importAccounts { success ->
+                                        importTokensViewModel.showDuplicateWarningDialog.value = false
+                                        if (success) navController.navigateUp()
+                                    }
+                                }
+                            },
+                            enabled = tokensToImport.any { it.isChecked } && !uiState.isImporting,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp)
+                                .heightIn(min = 46.dp)
+                        ) {
+                            if (uiState.isImporting) {
+                                CircularProgressIndicator(modifier = Modifier.height(24.dp))
+                            } else {
+                                Text(text = stringResource(Res.string.import_label))
+                            }
                         }
                     }
-                }
 
-                is ImportTokensViewModel.UiState.RequestPassword -> {
-                    RequestPasswordDialog(
-                        title = stringResource(Res.string.enter_your_password),
-                        placeholder = stringResource(Res.string.enter_password_to_decrypt),
-                        onDismissRequest = {
-                            importTokensViewModel.setInitialState()
-                        },
-                        onConfirmation = {
-                            importTokensViewModel.decodeEncryptedContent(uiState.file, it, uiState.format)
-                        }
-                    )
+                    is ImportTokensViewModel.UiState.RequestPassword -> {
+                        RequestPasswordDialog(
+                            title = stringResource(Res.string.enter_your_password),
+                            placeholder = stringResource(Res.string.enter_password_to_decrypt),
+                            onDismissRequest = {
+                                importTokensViewModel.setInitialState()
+                            },
+                            onConfirmation = {
+                                importTokensViewModel.decodeEncryptedContent(uiState.file, it, uiState.format)
+                            }
+                        )
+                    }
                 }
-            }
             }
         }
     }
