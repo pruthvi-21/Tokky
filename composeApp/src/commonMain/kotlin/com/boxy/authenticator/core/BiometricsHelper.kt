@@ -2,11 +2,12 @@ package com.boxy.authenticator.core
 
 import dev.icerock.moko.biometry.BiometryAuthenticator
 import dev.icerock.moko.resources.desc.desc
+import kotlinx.coroutines.CancellationException
 
 class BiometricsHelper {
     private val logger = Logger("BiometricsHelper")
 
-    var biometryAuthenticator: BiometryAuthenticator? = null
+    private var biometryAuthenticator: BiometryAuthenticator? = null
 
     fun init(biometryAuthenticator: BiometryAuthenticator) {
         this.biometryAuthenticator = biometryAuthenticator
@@ -25,13 +26,20 @@ class BiometricsHelper {
                 allowDeviceCredentials = false,
             )
             return isSuccess == true
-        } catch (throwable: Throwable) {
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (throwable: Exception) {
             logger.e(throwable.message, throwable)
             return false
         }
     }
 
     fun isBiometricAvailable(): Boolean {
-        return biometryAuthenticator?.isBiometricAvailable() == true
+        return try {
+            biometryAuthenticator?.isBiometricAvailable() == true
+        } catch (error: Exception) {
+            logger.e(error.message, error)
+            false
+        }
     }
 }

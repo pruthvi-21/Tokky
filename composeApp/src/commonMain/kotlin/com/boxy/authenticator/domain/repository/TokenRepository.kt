@@ -5,6 +5,7 @@ import com.boxy.authenticator.domain.models.LabelSummary
 
 interface TokenRepository {
     suspend fun getAllTokens(): List<TokenEntry>
+    suspend fun getRecycledTokens(): List<TokenEntry>
     suspend fun getTokensCount(): Long
     suspend fun findTokenWithId(tokenId: String): TokenEntry
     suspend fun findTokenWithName(issuer: String, label: String): TokenEntry?
@@ -12,6 +13,8 @@ interface TokenRepository {
     suspend fun insertToken(token: TokenEntry)
     suspend fun deleteToken(tokenId: String)
     suspend fun deleteTokens(tokenIds: Set<String>)
+    suspend fun restoreTokens(tokenIds: Set<String>)
+    suspend fun permanentlyDeleteTokens(tokenIds: Set<String>)
     suspend fun updateToken(token: TokenEntry)
     suspend fun updateTokens(tokens: List<TokenEntry>)
     suspend fun replaceTokenWith(id: String, token: TokenEntry)

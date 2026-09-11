@@ -142,15 +142,16 @@ class TokenSetupViewModelTest {
 
     @Test
     fun `delete requires a loaded token and forwards its id`() = runTest {
-        val repository = RecordingTokenRepository()
+        val token = testToken()
+        val repository = RecordingTokenRepository(listOf(token))
         val viewModel = viewModel(repository)
         assertFalse(viewModel.deleteToken())
 
-        val token = testToken()
         viewModel.setStateFromToken(token, TokenSetupMode.UPDATE)
 
         assertTrue(viewModel.deleteToken())
         assertEquals(token.id, repository.lastDeletedId)
+        assertEquals(token.id, repository.getRecycledTokens().single().id)
         assertFalse(viewModel.uiState.value.isSaving)
     }
 

@@ -21,6 +21,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
 class SerializationTest {
     @Test
@@ -87,7 +88,7 @@ class SerializationTest {
     @Test
     fun `export model drops database metadata and restores as a new token`() {
         val original = testToken(id = "database-id", labels = setOf("Work", "Admin"))
-            .copy(isArchived = true)
+            .copy(isArchived = true, deletedOn = 3_000L)
 
         val restored = ExportableTokenEntry.fromTokenEntry(original).toTokenEntry()
 
@@ -96,6 +97,7 @@ class SerializationTest {
         assertEquals(original.thumbnail, restored.thumbnail)
         assertEquals(original.labels, restored.labels)
         assertEquals(original.isArchived, restored.isArchived)
+        assertNull(restored.deletedOn)
         assertContentEquals(original.otpInfo.secretKey, restored.otpInfo.secretKey)
         assertEquals(AccountEntryMethod.RESTORED, restored.addedFrom)
         kotlin.test.assertNotEquals(original.id, restored.id)

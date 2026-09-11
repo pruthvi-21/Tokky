@@ -7,7 +7,8 @@ CREATE TABLE token_entry (
     createdOn INTEGER NOT NULL,
     updatedOn INTEGER NOT NULL,
     addedFrom TEXT NOT NULL,
-    isArchived INTEGER NOT NULL DEFAULT 0
+    isArchived INTEGER NOT NULL DEFAULT 0,
+    deletedOn INTEGER
 );
 
 CREATE INDEX token_entry_name_idx
@@ -31,25 +32,55 @@ CREATE INDEX token_label_label_idx ON token_label(labelId, tokenId);
 
 getAllTokens:
 SELECT * FROM token_entry
+WHERE deletedOn IS NULL
 ORDER BY issuer COLLATE NOCASE, label COLLATE NOCASE, createdOn;
 
+getRecycledTokens:
+SELECT * FROM token_entry
+WHERE deletedOn IS NOT NULL
+ORDER BY deletedOn DESC, issuer COLLATE NOCASE, label COLLATE NOCASE;
+
 getTokensCount:
-SELECT COUNT(*) FROM token_entry;
+SELECT COUNT(*) FROM token_entry WHERE deletedOn IS NULL;
 
 insertToken:
-INSERT INTO token_entry (id, issuer, label, thumbnail, otpInfo, createdOn, updatedOn, addedFrom, isArchived)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO token_entry (id, issuer, label, thumbnail, otpInfo, createdOn, updatedOn, addedFrom, isArchived, deletedOn)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
-deleteToken:
+permanentlyDeleteToken:
+DELETE FROM token_entry WHERE id = ? AND deletedOn IS NOT NULL;
+
+deleteTokenForReplacement:
 DELETE FROM token_entry WHERE id = ?;
 
+moveTokenToRecycleBin:
+UPDATE token_entry
+SET deletedOn = :deletedOn,
+    updatedOn = :deletedOn
+WHERE id = :tokenId AND deletedOn IS NULL;
+
+restoreToken:
+UPDATE token_entry
+SET deletedOn = NULL,
+    updatedOn = :updatedOn
+WHERE id = :tokenId
+AND deletedOn IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1 FROM token_entry AS active_token
+    WHERE active_token.deletedOn IS NULL
+    AND active_token.id != :tokenId
+    AND active_token.issuer = token_entry.issuer COLLATE NOCASE
+    AND active_token.label = token_entry.label COLLATE NOCASE
+);
+
 findTokenWithId:
-SELECT * FROM token_entry WHERE id = ?;
+SELECT * FROM token_entry WHERE id = ? AND deletedOn IS NULL;
 
 findTokenWithName:
 SELECT * FROM token_entry
 WHERE issuer = :issuer COLLATE NOCASE
 AND label = :label COLLATE NOCASE
+AND deletedOn IS NULL
 LIMIT 1;
 
 updateToken:
@@ -60,18 +91,28 @@ SET issuer = ?,
     otpInfo = ?,
     updatedOn = ?,
     isArchived = ?
-WHERE id = ?;
+WHERE id = ? AND deletedOn IS NULL;
 
 updateHotpInfo:
 UPDATE token_entry
 SET otpInfo = ?,
     updatedOn = ?
-WHERE id = ?;
+WHERE id = ? AND deletedOn IS NULL;
 
 getAllTokenLabels:
 SELECT token_label.tokenId, label_entity.name
 FROM token_label
 JOIN label_entity ON label_entity.id = token_label.labelId
+JOIN token_entry ON token_entry.id = token_label.tokenId
+WHERE token_entry.deletedOn IS NULL
+ORDER BY label_entity.name COLLATE NOCASE;
+
+getRecycledTokenLabels:
+SELECT token_label.tokenId, label_entity.name
+FROM token_label
+JOIN label_entity ON label_entity.id = token_label.labelId
+JOIN token_entry ON token_entry.id = token_label.tokenId
+WHERE token_entry.deletedOn IS NOT NULL
 ORDER BY label_entity.name COLLATE NOCASE;
 
 getLabelsForToken:
@@ -88,6 +129,14 @@ LEFT JOIN token_label ON token_label.labelId = label_entity.id
 LEFT JOIN token_entry
     ON token_entry.id = token_label.tokenId
     AND token_entry.isArchived = 0
+    AND token_entry.deletedOn IS NULL
+WHERE EXISTS (
+    SELECT 1
+    FROM token_label AS visible_relation
+    JOIN token_entry AS visible_token ON visible_token.id = visible_relation.tokenId
+    WHERE visible_relation.labelId = label_entity.id
+    AND visible_token.deletedOn IS NULL
+)
 GROUP BY label_entity.id
 ORDER BY label_entity.name COLLATE NOCASE;
 
@@ -102,6 +151,15 @@ INSERT OR IGNORE INTO token_label(tokenId, labelId) VALUES (?, ?);
 
 deleteTokenLabels:
 DELETE FROM token_label WHERE tokenId = ?;
+
+deleteRecycledTokenLabels:
+DELETE FROM token_label
+WHERE tokenId = :tokenId
+AND EXISTS (
+    SELECT 1 FROM token_entry
+    WHERE token_entry.id = :tokenId
+    AND token_entry.deletedOn IS NOT NULL
+);
 
 updateLabelName:
 UPDATE label_entity SET name = :name WHERE id = :id;

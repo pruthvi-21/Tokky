@@ -259,7 +259,8 @@ class HomeViewModelTest {
             viewModel.showDeleteSelectionDialog(true)
             assertTrue(viewModel.uiState.value.showDeleteSelectionDialog)
             viewModel.deleteSelection()
-            assertEquals(listOf("two"), repository.tokens.map { it.id })
+            assertEquals(listOf("two"), repository.getAllTokens().map { it.id })
+            assertEquals(listOf("one"), repository.getRecycledTokens().map { it.id })
         } finally {
             Dispatchers.resetMain()
         }
@@ -355,6 +356,7 @@ private class FakeTokenRepository(
         private set
 
     override suspend fun getAllTokens(): List<TokenEntry> = loadError?.let { throw it } ?: tokens
+    override suspend fun getRecycledTokens(): List<TokenEntry> = emptyList()
     override suspend fun getTokensCount() = tokens.size.toLong()
     override suspend fun findTokenWithId(tokenId: String): TokenEntry =
         findError?.let { throw it } ?: error("Not used")
@@ -363,6 +365,8 @@ private class FakeTokenRepository(
     override suspend fun insertToken(token: TokenEntry) = Unit
     override suspend fun deleteToken(tokenId: String) = Unit
     override suspend fun deleteTokens(tokenIds: Set<String>) = Unit
+    override suspend fun restoreTokens(tokenIds: Set<String>) = Unit
+    override suspend fun permanentlyDeleteTokens(tokenIds: Set<String>) = Unit
     override suspend fun updateToken(token: TokenEntry) = Unit
     override suspend fun updateTokens(tokens: List<TokenEntry>) = Unit
     override suspend fun replaceTokenWith(id: String, token: TokenEntry) = Unit

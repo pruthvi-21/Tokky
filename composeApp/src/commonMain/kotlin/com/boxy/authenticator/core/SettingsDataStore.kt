@@ -116,28 +116,35 @@ class SettingsDataStore(
     }
 
     fun setAppLockEnabled(isEnabled: Boolean, passwordHash: String = "") {
-        store.putBoolean(Keys.APP_LOCK, isEnabled)
         if (!isEnabled) {
+            store.putBoolean(Keys.APP_LOCK, false)
+            store.putBoolean(Keys.BIOMETRIC_UNLOCK, false)
             store.remove(Keys.APP_LOCK_HASH)
         } else {
-            if (passwordHash.isEmpty()) throw IllegalArgumentException("Password hash is empty")
+            require(passwordHash.isNotBlank()) { "Password hash is empty" }
+            // Persist the credential first so a failed write can never enable an unusable lock.
             store.putString(Keys.APP_LOCK_HASH, passwordHash)
+            store.putBoolean(Keys.APP_LOCK, true)
         }
     }
 
     fun isAppLockEnabled(default: Boolean = Defaults.APP_LOCK): Boolean {
         return try {
-            store.getBoolean(Keys.APP_LOCK, default)
+            store.getBoolean(Keys.APP_LOCK, default) && !getPasscodeHash().isNullOrBlank()
         } catch (e: Exception) {
             default
         }
     }
 
     fun setBiometricUnlockEnabled(isEnabled: Boolean) {
+        require(!isEnabled || (isAppLockEnabled() && !getPasscodeHash().isNullOrBlank())) {
+            "Biometric unlock requires an enabled app lock"
+        }
         store.putBoolean(Keys.BIOMETRIC_UNLOCK, isEnabled)
     }
 
     fun isBiometricUnlockEnabled(default: Boolean = Defaults.BIOMETRIC_UNLOCK): Boolean {
+        if (!isAppLockEnabled() || getPasscodeHash().isNullOrBlank()) return false
         return try {
             store.getBoolean(Keys.BIOMETRIC_UNLOCK, default)
         } catch (e: Exception) {
@@ -171,6 +178,12 @@ class SettingsDataStore(
 
     fun getPasscodeHash(): String? {
         return store.getString(Keys.APP_LOCK_HASH, null)
+    }
+
+    fun updatePasscodeHash(passwordHash: String) {
+        require(isAppLockEnabled()) { "App lock is disabled" }
+        require(passwordHash.isNotBlank()) { "Password hash is empty" }
+        store.putString(Keys.APP_LOCK_HASH, passwordHash)
     }
 
     fun markItemAsViewed(itemId: String) {

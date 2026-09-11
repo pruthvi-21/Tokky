@@ -9,6 +9,7 @@ import com.boxy.authenticator.domain.models.otp.TotpInfo
 import com.boxy.authenticator.utils.Constants
 import io.ktor.http.encodeURLPath
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -25,6 +26,7 @@ data class TokenEntry(
     val addedFrom: AccountEntryMethod,
     val labels: Set<String> = emptySet(),
     val isArchived: Boolean = false,
+    @Transient val deletedOn: Long? = null,
 ) {
     companion object {
         @OptIn(ExperimentalUuidApi::class)

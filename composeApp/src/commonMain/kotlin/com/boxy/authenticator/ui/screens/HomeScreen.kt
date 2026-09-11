@@ -51,6 +51,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -91,6 +92,9 @@ import boxy_authenticator.composeapp.generated.resources.make_default_label
 import boxy_authenticator.composeapp.generated.resources.make_default_label_message
 import boxy_authenticator.composeapp.generated.resources.manage_labels
 import boxy_authenticator.composeapp.generated.resources.more_options
+import boxy_authenticator.composeapp.generated.resources.move
+import boxy_authenticator.composeapp.generated.resources.move_to_recycle_bin
+import boxy_authenticator.composeapp.generated.resources.recycle_bin
 import boxy_authenticator.composeapp.generated.resources.remove_default_label
 import boxy_authenticator.composeapp.generated.resources.remove_default_label_message
 import boxy_authenticator.composeapp.generated.resources.set_default
@@ -99,7 +103,6 @@ import boxy_authenticator.composeapp.generated.resources.default_label
 import boxy_authenticator.composeapp.generated.resources.archived_accounts
 import boxy_authenticator.composeapp.generated.resources.no_active_accounts
 import boxy_authenticator.composeapp.generated.resources.no_labels
-import boxy_authenticator.composeapp.generated.resources.remove
 import boxy_authenticator.composeapp.generated.resources.restore_selected_accounts
 import boxy_authenticator.composeapp.generated.resources.restore_selected_accounts_message
 import boxy_authenticator.composeapp.generated.resources.restore
@@ -149,6 +152,7 @@ fun HomeScreen(
     showLabelCounts: Boolean,
     onNavigateToSettings: () -> Unit,
     onNavigateToManageLabels: () -> Unit,
+    onNavigateToRecycleBin: () -> Unit,
     onNavigateToQrScan: () -> Unit,
     onNavigateToNewTokenSetup: () -> Unit,
     onNavigateToEditToken: (String) -> Unit,
@@ -273,7 +277,7 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 Icons.Outlined.Delete,
-                                contentDescription = stringResource(Res.string.delete_selected_accounts),
+                                contentDescription = stringResource(Res.string.move_to_recycle_bin),
                                 tint = MaterialTheme.colorScheme.error,
                             )
                         }
@@ -296,6 +300,17 @@ fun HomeScreen(
                                 onDismissRequest = { isOverflowMenuExpanded = false },
                             ) {
                                 DropdownMenuItem(
+                                    text = { Text(stringResource(Res.string.title_settings)) },
+                                    leadingIcon = {
+                                        Icon(Icons.TwoTone.Settings, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        isOverflowMenuExpanded = false
+                                        onNavigateToSettings()
+                                    },
+                                )
+                                HorizontalDivider()
+                                DropdownMenuItem(
                                     text = { Text(stringResource(Res.string.manage_labels)) },
                                     leadingIcon = {
                                         Icon(Icons.AutoMirrored.Outlined.Label, contentDescription = null)
@@ -306,13 +321,13 @@ fun HomeScreen(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(Res.string.title_settings)) },
+                                    text = { Text(stringResource(Res.string.recycle_bin)) },
                                     leadingIcon = {
-                                        Icon(Icons.TwoTone.Settings, contentDescription = null)
+                                        Icon(Icons.Outlined.Delete, contentDescription = null)
                                     },
                                     onClick = {
                                         isOverflowMenuExpanded = false
-                                        onNavigateToSettings()
+                                        onNavigateToRecycleBin()
                                     },
                                 )
                             }
@@ -574,7 +589,7 @@ fun HomeScreen(
                 Res.string.delete_selected_accounts_message,
                 uiState.selectedTokenIds.size,
             ),
-            confirmText = stringResource(Res.string.remove),
+            confirmText = stringResource(Res.string.move),
             confirmEnabled = !uiState.isSelectionOperationRunning,
             isDestructive = true,
             onDismissRequest = { onShowDeleteSelectionDialog(false) },

@@ -6,4 +6,6 @@ data class SettingsUiState(
     val settings: AppSettings = AppSettings(),
     val showEnableAppLockDialog: Boolean = false,
     val showDisableAppLockDialog: Boolean = false,
+    val securityError: String? = null,
+    val isSecurityOperationInProgress: Boolean = false,
 )

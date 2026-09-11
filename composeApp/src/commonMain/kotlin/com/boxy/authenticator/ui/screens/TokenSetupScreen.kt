@@ -88,8 +88,8 @@ import boxy_authenticator.composeapp.generated.resources.label_secret_key
 import boxy_authenticator.composeapp.generated.resources.label_update_account
 import boxy_authenticator.composeapp.generated.resources.message_unsaved_changes
 import boxy_authenticator.composeapp.generated.resources.no
-import boxy_authenticator.composeapp.generated.resources.remove
-import boxy_authenticator.composeapp.generated.resources.remove_account
+import boxy_authenticator.composeapp.generated.resources.move
+import boxy_authenticator.composeapp.generated.resources.move_to_recycle_bin
 import boxy_authenticator.composeapp.generated.resources.archive
 import boxy_authenticator.composeapp.generated.resources.archive_account
 import boxy_authenticator.composeapp.generated.resources.archive_account_message
@@ -261,7 +261,7 @@ private fun TokenSetupScreen(
                         IconButton(onClick = { showDeleteTokenDialog(true) }) {
                             Icon(
                                 imageVector = Icons.Outlined.Delete,
-                                contentDescription = stringResource(Res.string.remove),
+                                contentDescription = stringResource(Res.string.move_to_recycle_bin),
                                 tint = MaterialTheme.colorScheme.error,
                             )
                         }
@@ -300,14 +300,14 @@ private fun TokenSetupScreen(
 
             if (uiState.showDeleteTokenDialog) {
                 BoxyDialog(
-                    dialogTitle = stringResource(Res.string.remove_account),
+                    dialogTitle = stringResource(Res.string.move_to_recycle_bin),
                     dialogBody = stringResource(
                         Res.string.dialog_message_delete_token,
                         uiState.issuer,
                         uiState.label
                     ),
                     dismissText = stringResource(Res.string.cancel),
-                    confirmText = stringResource(Res.string.remove),
+                    confirmText = stringResource(Res.string.move),
                     isDestructive = true,
                     onDismissRequest = {
                         showDeleteTokenDialog(false)

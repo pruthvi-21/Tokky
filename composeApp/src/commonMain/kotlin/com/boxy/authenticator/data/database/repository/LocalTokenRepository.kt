@@ -17,6 +17,10 @@ class LocalTokenRepository(
         tokenDao.getAllTokens()
     }
 
+    override suspend fun getRecycledTokens(): List<TokenEntry> = withContext(dispatcher) {
+        tokenDao.getRecycledTokens()
+    }
+
     override suspend fun getTokensCount(): Long = withContext(dispatcher) {
         tokenDao.getTokensCount()
     }
@@ -37,11 +41,25 @@ class LocalTokenRepository(
     }
 
     override suspend fun deleteToken(tokenId: String) = withContext(dispatcher) {
-        tokenDao.deleteToken(tokenId)
+        tokenDao.moveTokensToRecycleBin(
+            setOf(tokenId),
+            Clock.System.now().toEpochMilliseconds(),
+        )
     }
 
     override suspend fun deleteTokens(tokenIds: Set<String>) = withContext(dispatcher) {
-        tokenDao.deleteTokens(tokenIds)
+        tokenDao.moveTokensToRecycleBin(
+            tokenIds,
+            Clock.System.now().toEpochMilliseconds(),
+        )
+    }
+
+    override suspend fun restoreTokens(tokenIds: Set<String>) = withContext(dispatcher) {
+        tokenDao.restoreTokens(tokenIds, Clock.System.now().toEpochMilliseconds())
+    }
+
+    override suspend fun permanentlyDeleteTokens(tokenIds: Set<String>) = withContext(dispatcher) {
+        tokenDao.permanentlyDeleteTokens(tokenIds)
     }
 
     override suspend fun updateToken(token: TokenEntry) = withContext(dispatcher) {

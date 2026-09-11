@@ -101,6 +101,7 @@ fun GeneralSettings(
         SwitchPreference(
             title = { Text(stringResource(Res.string.preference_title_use_pin)) },
             summary = { Text(stringResource(Res.string.preference_summary_use_pin)) },
+            enabled = !uiState.settings.isAppLockEnabled,
             value = isLockscreenPinPadEnabled,
             onValueChange = {
                 onEvent(SettingChangeEvent.LockScreenPinPadChanged(it))

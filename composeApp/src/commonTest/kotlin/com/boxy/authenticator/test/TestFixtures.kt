@@ -12,8 +12,14 @@ import com.boxy.authenticator.domain.repository.TokenRepository
 internal class InMemoryPreferenceStore : PreferenceStore {
     val values = mutableMapOf<String, Any>()
     var readError: Throwable? = null
+    var writeError: Throwable? = null
+
+    private fun failWriteIfConfigured() {
+        writeError?.let { throw it }
+    }
 
     override fun putBoolean(key: String, value: Boolean) {
+        failWriteIfConfigured()
         values[key] = value
     }
 
@@ -23,6 +29,7 @@ internal class InMemoryPreferenceStore : PreferenceStore {
     }
 
     override fun putString(key: String, value: String) {
+        failWriteIfConfigured()
         values[key] = value
     }
 
@@ -32,6 +39,7 @@ internal class InMemoryPreferenceStore : PreferenceStore {
     }
 
     override fun putInt(key: String, value: Int) {
+        failWriteIfConfigured()
         values[key] = value
     }
 
@@ -41,6 +49,7 @@ internal class InMemoryPreferenceStore : PreferenceStore {
     }
 
     override fun putLong(key: String, value: Long) {
+        failWriteIfConfigured()
         values[key] = value
     }
 
@@ -50,10 +59,12 @@ internal class InMemoryPreferenceStore : PreferenceStore {
     }
 
     override fun remove(key: String) {
+        failWriteIfConfigured()
         values.remove(key)
     }
 
     override fun clear() {
+        failWriteIfConfigured()
         values.clear()
     }
 }
@@ -73,22 +84,28 @@ internal class RecordingTokenRepository(
 
     override suspend fun getAllTokens(): List<TokenEntry> {
         failIfConfigured()
-        return tokens.toList()
+        return tokens.filter { it.deletedOn == null }
+    }
+
+    override suspend fun getRecycledTokens(): List<TokenEntry> {
+        failIfConfigured()
+        return tokens.filter { it.deletedOn != null }.sortedByDescending { it.deletedOn }
     }
 
     override suspend fun getTokensCount(): Long {
         failIfConfigured()
-        return tokens.size.toLong()
+        return tokens.count { it.deletedOn == null }.toLong()
     }
 
     override suspend fun findTokenWithId(tokenId: String): TokenEntry {
         failIfConfigured()
-        return tokens.first { it.id == tokenId }
+        return tokens.first { it.id == tokenId && it.deletedOn == null }
     }
 
     override suspend fun findTokenWithName(issuer: String, label: String): TokenEntry? {
         failIfConfigured()
         return tokens.firstOrNull {
+            it.deletedOn == null &&
             it.issuer.equals(issuer, ignoreCase = true) &&
                     it.label.equals(label, ignoreCase = true)
         }
@@ -107,12 +124,46 @@ internal class RecordingTokenRepository(
     override suspend fun deleteToken(tokenId: String) {
         failIfConfigured()
         lastDeletedId = tokenId
-        tokens.removeAll { it.id == tokenId }
+        markDeleted(setOf(tokenId))
     }
 
     override suspend fun deleteTokens(tokenIds: Set<String>) {
         failIfConfigured()
-        tokens.removeAll { it.id in tokenIds }
+        markDeleted(tokenIds)
+    }
+
+    override suspend fun restoreTokens(tokenIds: Set<String>) {
+        failIfConfigured()
+        val restoring = tokens.filter { it.id in tokenIds && it.deletedOn != null }
+        if (restoring.mapTo(mutableSetOf()) { it.id } != tokenIds) {
+            throw IllegalStateException("Account could not be restored.")
+        }
+        restoring.forEach { recycled ->
+            if (tokens.any { active ->
+                    active.deletedOn == null &&
+                            active.issuer.equals(recycled.issuer, ignoreCase = true) &&
+                            active.label.equals(recycled.label, ignoreCase = true)
+                }
+            ) {
+                throw IllegalStateException("Account could not be restored.")
+            }
+        }
+        tokens.indices.forEach { index ->
+            if (tokens[index].id in tokenIds) tokens[index] = tokens[index].copy(deletedOn = null)
+        }
+    }
+
+    override suspend fun permanentlyDeleteTokens(tokenIds: Set<String>) {
+        failIfConfigured()
+        tokens.removeAll { it.id in tokenIds && it.deletedOn != null }
+    }
+
+    private fun markDeleted(tokenIds: Set<String>) {
+        tokens.indices.forEach { index ->
+            if (tokens[index].id in tokenIds && tokens[index].deletedOn == null) {
+                tokens[index] = tokens[index].copy(deletedOn = 3_000L)
+            }
+        }
     }
 
     override suspend fun updateToken(token: TokenEntry) {
@@ -143,10 +194,11 @@ internal class RecordingTokenRepository(
 
     override suspend fun getLabels(): List<LabelSummary> {
         failIfConfigured()
-        return tokens.flatMap { it.labels }
+        val visibleTokens = tokens.filter { it.deletedOn == null }
+        return visibleTokens.flatMap { it.labels }
             .distinctBy { it.lowercase() }
             .map { name ->
-                LabelSummary(name, tokens.count { token ->
+                LabelSummary(name, visibleTokens.count { token ->
                     token.labels.any { it.equals(name, ignoreCase = true) }
                 }.toLong())
             }

@@ -30,4 +30,7 @@ sealed class Screen {
     @Serializable
     data object ManageLabels : Screen()
 
+    @Serializable
+    data object RecycleBin : Screen()
+
 }

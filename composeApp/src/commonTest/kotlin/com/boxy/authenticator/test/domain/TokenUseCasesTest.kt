@@ -86,7 +86,7 @@ class TokenUseCasesTest {
     }
 
     @Test
-    fun `delete update replace and HOTP operations preserve arguments`() = runTest {
+    fun `recycle update replace and HOTP operations preserve arguments`() = runTest {
         val original = testToken(id = "original")
         val updated = original.copy(label = "updated")
         val replacement = testToken(id = "replacement")
@@ -104,6 +104,7 @@ class TokenUseCasesTest {
 
         assertTrue(DeleteTokenUseCase(repository)(replacement.id).isSuccess)
         assertEquals(replacement.id, repository.lastDeletedId)
-        assertTrue(repository.tokens.isEmpty())
+        assertTrue(repository.getAllTokens().isEmpty())
+        assertEquals(listOf(replacement.id), repository.getRecycledTokens().map { it.id })
     }
 }

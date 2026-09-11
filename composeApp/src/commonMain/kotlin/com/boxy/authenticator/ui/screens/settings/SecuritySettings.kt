@@ -8,7 +8,6 @@ import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.biometric_prompt_title
 import boxy_authenticator.composeapp.generated.resources.cancel
 import boxy_authenticator.composeapp.generated.resources.enter_correct_password
-import boxy_authenticator.composeapp.generated.resources.incorrect_password
 import boxy_authenticator.composeapp.generated.resources.password
 import boxy_authenticator.composeapp.generated.resources.preference_category_title_security
 import boxy_authenticator.composeapp.generated.resources.preference_summary_app_lock
@@ -20,12 +19,10 @@ import boxy_authenticator.composeapp.generated.resources.preference_title_biomet
 import boxy_authenticator.composeapp.generated.resources.preference_title_block_screenshots
 import boxy_authenticator.composeapp.generated.resources.preference_title_lock_sensitive_fields
 import boxy_authenticator.composeapp.generated.resources.remove_password
-import boxy_authenticator.composeapp.generated.resources.to_disable_biometrics
 import boxy_authenticator.composeapp.generated.resources.to_disable_this_setting
 import boxy_authenticator.composeapp.generated.resources.to_enable_biometrics
 import boxy_authenticator.composeapp.generated.resources.verify_your_identity
 import com.boxy.authenticator.core.BiometricsHelper
-import com.boxy.authenticator.core.Logger
 import com.boxy.authenticator.core.Platform
 import com.boxy.authenticator.domain.models.form.SettingChangeEvent
 import com.boxy.authenticator.ui.components.dialogs.RequestPasswordDialog
@@ -46,8 +43,6 @@ fun SecuritySettings(
     showDisableAppLockDialog: (Boolean) -> Unit,
     snackbarHostState: SnackbarHostState,
 ) {
-    val logger = Logger("SecuritySettings")
-
     val biometricsHelper: BiometricsHelper = koinInject()
 
     val isAppLockEnabled = uiState.settings.isAppLockEnabled
@@ -78,15 +73,16 @@ fun SecuritySettings(
         SwitchPreference(
             title = { Text(stringResource(Res.string.preference_title_biometrics)) },
             summary = { Text(stringResource(Res.string.preference_summary_biometrics)) },
-            enabled = uiState.settings.isAppLockEnabled && biometricsHelper.isBiometricAvailable(),
+            enabled = uiState.settings.isAppLockEnabled &&
+                    (isBiometricUnlockEnabled || biometricsHelper.isBiometricAvailable()),
             value = isBiometricUnlockEnabled,
             onValueChange = { newValue ->
                 scope.launch {
-                    val canProceed = biometricsHelper.isBiometricAvailable().not() ||
-                            biometricsHelper.promptForBiometrics(
+                    // Removing an unlock method is always safe. Adding one requires a successful
+                    // biometric check so the toggle cannot be enabled by an unauthenticated tap.
+                    val canProceed = !newValue || biometricsHelper.promptForBiometrics(
                                 title = getString(Res.string.biometric_prompt_title),
-                                reason = if (newValue) getString(Res.string.to_enable_biometrics)
-                                else getString(Res.string.to_disable_biometrics),
+                                reason = getString(Res.string.to_enable_biometrics),
                                 failureButtonText = getString(Res.string.cancel),
                             )
 
@@ -135,19 +131,13 @@ fun SecuritySettings(
 
     if (uiState.showEnableAppLockDialog) {
         SetPasswordDialog(
+            numericOnly = uiState.settings.isLockscreenPinPadEnabled,
             onDismissRequest = {
                 showEnableAppLockDialog(false)
             },
             onConfirmation = { password ->
                 showEnableAppLockDialog(false)
-                try {
-                    onEvent(SettingChangeEvent.AppLockChanged(true, password))
-                } catch (e: IllegalArgumentException) {
-                    logger.e(e.message, e)
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Unknown error")
-                    }
-                }
+                onEvent(SettingChangeEvent.AppLockChanged(true, password))
             }
         )
     }
@@ -163,18 +153,7 @@ fun SecuritySettings(
             onConfirmation = { password ->
                 showDisableAppLockDialog(false)
 
-                runCatching {
-                    onEvent(SettingChangeEvent.AppLockChanged(false, password))
-                }.onFailure { e ->
-                    logger.e(e.message, e)
-                    scope.launch {
-                        val message = when (e) {
-                            is IllegalArgumentException -> "Unknown error"
-                            else -> getString(Res.string.incorrect_password)
-                        }
-                        snackbarHostState.showSnackbar(message)
-                    }
-                }
+                onEvent(SettingChangeEvent.AppLockChanged(false, password))
             }
         )
     }

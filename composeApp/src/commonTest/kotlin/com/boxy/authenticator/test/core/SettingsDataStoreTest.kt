@@ -39,6 +39,7 @@ class SettingsDataStoreTest {
         settings.setShowLabelCountsEnabled(true)
         settings.setLockscreenPinPadEnabled(true)
         settings.setDisableBackupAlertsEnabled(true)
+        settings.setAppLockEnabled(true, "fake-hash")
         settings.setBiometricUnlockEnabled(true)
         settings.setBlockScreenshotsEnabled(false)
         settings.setLockSensitiveFieldsEnabled(false)
@@ -71,6 +72,7 @@ class SettingsDataStoreTest {
     @Test
     fun `enabling app lock requires and stores a password hash`() {
         assertFailsWith<IllegalArgumentException> { settings.setAppLockEnabled(true) }
+        assertFalse(settings.isAppLockEnabled())
 
         settings.setAppLockEnabled(true, "fake-hash")
         assertTrue(settings.isAppLockEnabled())
@@ -80,10 +82,33 @@ class SettingsDataStoreTest {
     @Test
     fun `disabling app lock removes password hash`() {
         settings.setAppLockEnabled(true, "fake-hash")
+        settings.setBiometricUnlockEnabled(true)
         settings.setAppLockEnabled(false)
 
         assertFalse(settings.isAppLockEnabled())
+        assertFalse(settings.isBiometricUnlockEnabled())
         assertNull(settings.getPasscodeHash())
+    }
+
+    @Test
+    fun `biometric unlock cannot be enabled without a usable app lock`() {
+        assertFailsWith<IllegalArgumentException> { settings.setBiometricUnlockEnabled(true) }
+
+        store.values[SettingsDataStore.Companion.Keys.APP_LOCK] = true
+        store.values[SettingsDataStore.Companion.Keys.BIOMETRIC_UNLOCK] = true
+        assertFalse(settings.isAppLockEnabled())
+        assertFalse(settings.isBiometricUnlockEnabled())
+    }
+
+    @Test
+    fun `failed credential write never enables app lock`() {
+        store.writeError = IllegalStateException("disk unavailable")
+
+        assertFailsWith<IllegalStateException> {
+            settings.setAppLockEnabled(true, "credential")
+        }
+        store.writeError = null
+        assertFalse(settings.isAppLockEnabled())
     }
 
     @Test

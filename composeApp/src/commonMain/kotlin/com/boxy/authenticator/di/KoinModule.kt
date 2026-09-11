@@ -23,27 +23,33 @@ import com.boxy.authenticator.domain.usecases.UpdateHotpCounterUseCase
 import com.boxy.authenticator.domain.usecases.UpdateTokenUseCase
 import com.boxy.authenticator.domain.usecases.UpdateTokensUseCase
 import com.boxy.authenticator.domain.usecases.DeleteTokensUseCase
+import com.boxy.authenticator.domain.usecases.FetchRecycledTokensUseCase
+import com.boxy.authenticator.domain.usecases.PermanentlyDeleteTokensUseCase
+import com.boxy.authenticator.domain.usecases.RestoreTokensUseCase
 import com.boxy.authenticator.ui.viewmodels.AuthenticationViewModel
 import com.boxy.authenticator.ui.viewmodels.ExportTokensViewModel
 import com.boxy.authenticator.ui.viewmodels.HomeViewModel
 import com.boxy.authenticator.ui.viewmodels.ImportTokensViewModel
 import com.boxy.authenticator.ui.viewmodels.SettingsViewModel
 import com.boxy.authenticator.ui.viewmodels.ManageLabelsViewModel
+import com.boxy.authenticator.ui.viewmodels.RecycleBinViewModel
 import com.boxy.authenticator.ui.viewmodels.TokenSetupViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
+import com.boxy.authenticator.core.crypto.PasscodeManager
 
 expect val platformModule: Module
 
 val sharedModule = module {
-    viewModel { AuthenticationViewModel(get()) }
+    viewModel { AuthenticationViewModel(get(), get()) }
     viewModel { HomeViewModel(get(), get(), get(), get(), get()) }
     viewModel { TokenSetupViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
-    viewModel { SettingsViewModel(get()) }
+    viewModel { SettingsViewModel(get(), get()) }
     viewModel { ExportTokensViewModel(get(), get()) }
     viewModel { ImportTokensViewModel(get(), get(), get()) }
     viewModel { ManageLabelsViewModel(get(), get(), get(), get()) }
+    viewModel { RecycleBinViewModel(get(), get(), get()) }
 
     // UseCases
     factory { DeleteTokenUseCase(get()) }
@@ -60,6 +66,9 @@ val sharedModule = module {
     factory { FetchLabelsUseCase(get()) }
     factory { RenameLabelUseCase(get()) }
     factory { DeleteLabelUseCase(get()) }
+    factory { FetchRecycledTokensUseCase(get()) }
+    factory { RestoreTokensUseCase(get()) }
+    factory { PermanentlyDeleteTokensUseCase(get()) }
 
     //Database
     single<TokenDatabase> {
@@ -75,5 +84,6 @@ val sharedModule = module {
     factory { TokenFormValidator() }
 
     single { SettingsDataStore(get()) }
+    single { PasscodeManager() }
     single { BiometricsHelper() }
 }

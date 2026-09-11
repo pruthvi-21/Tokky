@@ -2,21 +2,23 @@ package com.boxy.authenticator.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.boxy.authenticator.core.Logger
+import boxy_authenticator.composeapp.generated.resources.Res
+import boxy_authenticator.composeapp.generated.resources.incorrect_password
 import com.boxy.authenticator.core.SettingsDataStore
-import com.boxy.authenticator.core.crypto.HashKeyGenerator
+import com.boxy.authenticator.core.crypto.PasscodeManager
 import com.boxy.authenticator.domain.models.form.SettingChangeEvent
 import com.boxy.authenticator.domain.models.AppSettings
 import com.boxy.authenticator.ui.state.SettingsUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import org.jetbrains.compose.resources.getString
 
 class SettingsViewModel(
     private val settingsDataStore: SettingsDataStore,
+    private val passcodeManager: PasscodeManager,
 ) : ViewModel() {
-    private val logger = Logger("SettingsViewModel")
-
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -69,30 +71,38 @@ class SettingsViewModel(
             }
 
             is SettingChangeEvent.AppLockChanged -> {
+                if (_uiState.value.isSecurityOperationInProgress) return
                 viewModelScope.launch {
-                    val hash = HashKeyGenerator.generateHashKey(event.password)
-                    if (event.enabled) {
-                        settingsDataStore.setAppLockEnabled(true, hash)
-                        updateSettings(
-                            _uiState.value.settings.copy(isAppLockEnabled = true)
-                        )
-                    } else {
-                        val storedHash = settingsDataStore.getPasscodeHash()
-                        val isValid = hash.contentEquals(storedHash)
-
-                        if (isValid) {
-                            settingsDataStore.setAppLockEnabled(false)
-                            settingsDataStore.setBiometricUnlockEnabled(false)
-
-                            updateSettings(
-                                _uiState.value.settings.copy(
-                                    isAppLockEnabled = false,
-                                    isBiometricUnlockEnabled = false,
-                                )
-                            )
+                    _uiState.value = _uiState.value.copy(
+                        isSecurityOperationInProgress = true,
+                        securityError = null,
+                    )
+                    try {
+                        if (event.enabled) {
+                            val credential = passcodeManager.create(event.password)
+                            settingsDataStore.setAppLockEnabled(true, credential)
                         } else {
-                            throw Exception()
+                            val verification = passcodeManager.verify(
+                                event.password,
+                                settingsDataStore.getPasscodeHash(),
+                            )
+                            if (verification == PasscodeManager.Verification.INVALID) {
+                                _uiState.value = _uiState.value.copy(
+                                    securityError = incorrectPasswordMessage(),
+                                )
+                                return@launch
+                            }
+                            settingsDataStore.setAppLockEnabled(false)
                         }
+                        updateSettings(settingsDataStore.getSettings())
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (error: Exception) {
+                        _uiState.value = _uiState.value.copy(
+                            securityError = error.message ?: "Unable to update app lock",
+                        )
+                    } finally {
+                        _uiState.value = _uiState.value.copy(isSecurityOperationInProgress = false)
                     }
                 }
             }
@@ -135,5 +145,15 @@ class SettingsViewModel(
         _uiState.value = _uiState.value.copy(
             showDisableAppLockDialog = show
         )
+    }
+
+    fun clearSecurityError() {
+        _uiState.value = _uiState.value.copy(securityError = null)
+    }
+
+    private suspend fun incorrectPasswordMessage(): String = try {
+        getString(Res.string.incorrect_password)
+    } catch (_: Exception) {
+        "Incorrect password"
     }
 }

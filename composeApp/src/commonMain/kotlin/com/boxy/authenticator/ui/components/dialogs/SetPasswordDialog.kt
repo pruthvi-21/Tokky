@@ -24,6 +24,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.confirm_password
@@ -33,6 +34,7 @@ import boxy_authenticator.composeapp.generated.resources.password
 import boxy_authenticator.composeapp.generated.resources.password_cant_be_empty
 import boxy_authenticator.composeapp.generated.resources.password_didnt_match
 import boxy_authenticator.composeapp.generated.resources.password_too_short
+import boxy_authenticator.composeapp.generated.resources.password_must_be_numeric
 import boxy_authenticator.composeapp.generated.resources.set_password
 import boxy_authenticator.composeapp.generated.resources.show_password
 import com.boxy.authenticator.ui.components.design.BoxyTextField
@@ -44,6 +46,7 @@ import org.jetbrains.compose.resources.stringResource
 fun SetPasswordDialog(
     dialogBody: String? = null,
     confirmText: String = stringResource(Res.string.ok),
+    numericOnly: Boolean = false,
     onDismissRequest: () -> Unit,
     onConfirmation: (String) -> Unit,
 ) {
@@ -70,6 +73,8 @@ fun SetPasswordDialog(
                 passwordError = when {
                     password.isEmpty() -> getString(Res.string.password_cant_be_empty)
                     password.length < 6 -> getString(Res.string.password_too_short, 6)
+                    numericOnly && password.any { !it.isDigit() } ->
+                        getString(Res.string.password_must_be_numeric)
                     else -> null
                 }
 
@@ -101,7 +106,8 @@ fun SetPasswordDialog(
                 hidePasswordVisibilityEye = true,
                 errorMessage = passwordError,
                 keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Next
+                    imeAction = ImeAction.Next,
+                    keyboardType = if (numericOnly) KeyboardType.NumberPassword else KeyboardType.Text,
                 ),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
@@ -121,7 +127,8 @@ fun SetPasswordDialog(
                 hidePasswordVisibilityEye = true,
                 errorMessage = confirmPasswordError,
                 keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Done
+                    imeAction = ImeAction.Done,
+                    keyboardType = if (numericOnly) KeyboardType.NumberPassword else KeyboardType.Text,
                 ),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.clearFocus() }

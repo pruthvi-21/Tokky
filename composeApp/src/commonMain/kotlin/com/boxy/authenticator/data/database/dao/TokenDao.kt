@@ -5,10 +5,12 @@ import com.boxy.authenticator.domain.models.LabelSummary
 
 interface TokenDao {
     fun getAllTokens(): List<TokenEntry>
+    fun getRecycledTokens(): List<TokenEntry>
     fun getTokensCount(): Long
     fun insertToken(token: TokenEntry)
-    fun deleteToken(tokenId: String)
-    fun deleteTokens(tokenIds: Set<String>)
+    fun moveTokensToRecycleBin(tokenIds: Set<String>, deletedOn: Long)
+    fun restoreTokens(tokenIds: Set<String>, updatedOn: Long)
+    fun permanentlyDeleteTokens(tokenIds: Set<String>)
     fun findTokenWithId(tokenId: String): TokenEntry
     fun findTokenWithName(issuer: String, label: String): TokenEntry?
     fun insertTokens(tokens: List<TokenEntry>)

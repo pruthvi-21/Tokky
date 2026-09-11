@@ -1,9 +1,14 @@
 package com.boxy.authenticator.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,13 +23,16 @@ import com.boxy.authenticator.ui.screens.ImportTokensScreen
 import com.boxy.authenticator.ui.screens.QrScannerScreen
 import com.boxy.authenticator.ui.screens.SettingsScreen
 import com.boxy.authenticator.ui.screens.ManageLabelsScreen
+import com.boxy.authenticator.ui.screens.RecycleBinScreen
 import com.boxy.authenticator.ui.screens.TokenSetupScreen
 import com.boxy.authenticator.ui.viewmodels.AuthenticationViewModel
 import com.boxy.authenticator.ui.viewmodels.ExportTokensViewModel
 import com.boxy.authenticator.ui.viewmodels.HomeViewModel
 import com.boxy.authenticator.ui.viewmodels.SettingsViewModel
 import com.boxy.authenticator.ui.viewmodels.ManageLabelsViewModel
+import com.boxy.authenticator.ui.viewmodels.RecycleBinViewModel
 import com.boxy.authenticator.ui.viewmodels.TokenSetupViewModel
+import com.boxy.authenticator.ui.util.BindDeviceLockEffect
 import io.ktor.http.decodeURLQueryComponent
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -38,9 +46,42 @@ fun RootNavigation(
 
     val settings: SettingsDataStore = koinInject()
     val navController = rememberNavController()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val appLockLifecycleGuard = remember(settings) {
+        AppLockLifecycleGuard(settings::isAppLockEnabled)
+    }
 
     val startDestination = if (settings.isAppLockEnabled()) Screen.Auth
     else Screen.Home
+
+    fun navigateToAuthentication() {
+        navController.navigate(Screen.Auth) {
+            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+
+    BindDeviceLockEffect {
+        if (appLockLifecycleGuard.onDeviceLocked()) navigateToAuthentication()
+    }
+
+    DisposableEffect(lifecycleOwner, navController) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    appLockLifecycleGuard.onStopped()
+                }
+                Lifecycle.Event.ON_START -> {
+                    if (appLockLifecycleGuard.onStarted()) {
+                        navigateToAuthentication()
+                    }
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     NavHost(
         navController = navController,
@@ -58,13 +99,12 @@ fun RootNavigation(
             AuthenticationScreen(
                 uiState = uiState,
                 isPinPadVisible = authViewModel.isPinPadVisible.value,
+                isBiometricUnlockEnabled = authViewModel.isBiometricUnlockEnabled,
                 onPasswordChange = { authViewModel.updatePassword(it) },
                 onSubmit = {
                     authViewModel.verifyPassword {
                         if (it) navController.navigate(Screen.Home) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                inclusive = false
-                            }
+                            popUpTo<Screen.Auth> { inclusive = true }
                             launchSingleTop = true
                         }
                     }
@@ -72,13 +112,10 @@ fun RootNavigation(
                 updatePinPadVisibility = { authViewModel.updatePinPadVisibility() },
                 onAuthSuccess = {
                     navController.navigate(Screen.Home) {
-                        popUpTo(navController.graph.startDestinationId) {
-                            inclusive = false
-                        }
+                        popUpTo<Screen.Auth> { inclusive = true }
                         launchSingleTop = true
                     }
                 },
-                navigateToSettings = { navController.navigate(Screen.Settings) }
             )
         }
 
@@ -116,6 +153,7 @@ fun RootNavigation(
                 showLabelCounts = settingsUiState.settings.isShowLabelCountsEnabled,
                 onNavigateToSettings = { navController.navigate(Screen.Settings) },
                 onNavigateToManageLabels = { navController.navigate(Screen.ManageLabels) },
+                onNavigateToRecycleBin = { navController.navigate(Screen.RecycleBin) },
                 onNavigateToQrScan = { navController.navigate(Screen.QrScanner) },
                 onNavigateToNewTokenSetup = { navController.navigate(Screen.TokenSetup()) },
                 onNavigateToEditToken = {
@@ -173,6 +211,7 @@ fun RootNavigation(
                 onEvent = { settingsViewModel.onEvent(it) },
                 showEnableAppLockDialog = { settingsViewModel.showEnableAppLockDialog(it) },
                 showDisableAppLockDialog = { settingsViewModel.showDisableAppLockDialog(it) },
+                clearSecurityError = settingsViewModel::clearSecurityError,
                 navigateToExportScreen = { navController.navigate(Screen.ExportTokens) },
                 navigateToImportScreen = { navController.navigate(Screen.ImportTokens) },
                 navigateUp = { navController.navigateUp() },
@@ -216,6 +255,20 @@ fun RootNavigation(
                 renameLabel = viewModel::renameLabel,
                 showDeleteDialog = viewModel::showDeleteDialog,
                 deleteLabel = viewModel::deleteLabel,
+                clearOperationError = viewModel::clearOperationError,
+                navigateUp = navController::navigateUp,
+            )
+        }
+
+        composable<Screen.RecycleBin> {
+            val viewModel: RecycleBinViewModel = koinViewModel()
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            RecycleBinScreen(
+                uiState = uiState,
+                loadTokens = viewModel::loadTokens,
+                restoreToken = viewModel::restoreToken,
+                showPermanentDeleteDialog = viewModel::showPermanentDeleteDialog,
+                permanentlyDeleteToken = viewModel::permanentlyDeleteToken,
                 clearOperationError = viewModel::clearOperationError,
                 navigateUp = navController::navigateUp,
             )

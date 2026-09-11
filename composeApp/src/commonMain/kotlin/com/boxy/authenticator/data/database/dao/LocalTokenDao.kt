@@ -3,6 +3,7 @@ package com.boxy.authenticator.data.database.dao
 import com.boxy.authenticator.db.TokenDatabase
 import com.boxy.authenticator.db.TokenEntityQueries
 import com.boxy.authenticator.db.Token_entry
+import com.boxy.authenticator.db.GetRecycledTokens
 import com.boxy.authenticator.domain.models.Thumbnail
 import com.boxy.authenticator.domain.models.LabelSummary
 import com.boxy.authenticator.domain.models.TokenEntry
@@ -24,6 +25,16 @@ class LocalTokenDao(database: TokenDatabase) : TokenDao {
         }
     }
 
+    override fun getRecycledTokens(): List<TokenEntry> {
+        return queries.transactionWithResult {
+            val labelsByToken = queries.getRecycledTokenLabels().executeAsList()
+                .groupBy({ it.tokenId }, { it.name })
+            queries.getRecycledTokens().executeAsList().map { token ->
+                token.toTokenEntry(labelsByToken[token.id].orEmpty().toSet())
+            }
+        }
+    }
+
     override fun getTokensCount(): Long {
         return queries.getTokensCount().executeAsOne()
     }
@@ -35,19 +46,28 @@ class LocalTokenDao(database: TokenDatabase) : TokenDao {
         }
     }
 
-    override fun deleteToken(tokenId: String) {
+    override fun moveTokensToRecycleBin(tokenIds: Set<String>, deletedOn: Long) {
         queries.transaction {
-            queries.deleteTokenLabels(tokenId)
-            queries.deleteToken(tokenId)
-            queries.deleteUnusedLabels()
+            tokenIds.forEach { queries.moveTokenToRecycleBin(deletedOn, it) }
         }
     }
 
-    override fun deleteTokens(tokenIds: Set<String>) {
+    override fun restoreTokens(tokenIds: Set<String>, updatedOn: Long) {
         queries.transaction {
             tokenIds.forEach { tokenId ->
-                queries.deleteTokenLabels(tokenId)
-                queries.deleteToken(tokenId)
+                queries.restoreToken(updatedOn, tokenId)
+                if (queries.findTokenWithId(tokenId).executeAsOneOrNull() == null) {
+                    throw IllegalStateException("Account could not be restored.")
+                }
+            }
+        }
+    }
+
+    override fun permanentlyDeleteTokens(tokenIds: Set<String>) {
+        queries.transaction {
+            tokenIds.forEach { tokenId ->
+                queries.deleteRecycledTokenLabels(tokenId)
+                queries.permanentlyDeleteToken(tokenId)
             }
             queries.deleteUnusedLabels()
         }
@@ -107,7 +127,7 @@ class LocalTokenDao(database: TokenDatabase) : TokenDao {
     override fun replaceTokenWith(id: String, token: TokenEntry) {
         queries.transaction {
             queries.deleteTokenLabels(id)
-            queries.deleteToken(id)
+            queries.deleteTokenForReplacement(id)
             queries.insertTokenEntry(token)
             queries.replaceLabels(token)
             queries.deleteUnusedLabels()
@@ -178,6 +198,21 @@ private fun Token_entry.toTokenEntry(labels: Set<String>) = TokenEntry(
     addedFrom = AccountEntryMethod.valueOf(addedFrom),
     labels = labels,
     isArchived = isArchived != 0L,
+    deletedOn = deletedOn,
+)
+
+private fun GetRecycledTokens.toTokenEntry(labels: Set<String>) = TokenEntry(
+    id = id,
+    issuer = issuer,
+    label = label,
+    thumbnail = Thumbnail.deserialize(thumbnail),
+    otpInfo = OtpInfo.deserialize(otpInfo),
+    createdOn = createdOn,
+    updatedOn = updatedOn,
+    addedFrom = AccountEntryMethod.valueOf(addedFrom),
+    labels = labels,
+    isArchived = isArchived != 0L,
+    deletedOn = deletedOn,
 )
 
 private fun TokenEntityQueries.insertTokenEntry(token: TokenEntry) {
@@ -191,6 +226,7 @@ private fun TokenEntityQueries.insertTokenEntry(token: TokenEntry) {
         updatedOn = token.updatedOn,
         addedFrom = token.addedFrom.name,
         isArchived = if (token.isArchived) 1L else 0L,
+        deletedOn = token.deletedOn,
     )
 }
 

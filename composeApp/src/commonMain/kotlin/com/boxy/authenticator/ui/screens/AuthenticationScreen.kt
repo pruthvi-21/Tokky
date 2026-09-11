@@ -14,18 +14,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,12 +43,13 @@ import boxy_authenticator.composeapp.generated.resources.biometric_prompt_title
 import boxy_authenticator.composeapp.generated.resources.cancel
 import boxy_authenticator.composeapp.generated.resources.enter_your_password
 import boxy_authenticator.composeapp.generated.resources.ic_app_logo
-import boxy_authenticator.composeapp.generated.resources.title_settings
 import boxy_authenticator.composeapp.generated.resources.to_unlock
 import boxy_authenticator.composeapp.generated.resources.unlock
 import boxy_authenticator.composeapp.generated.resources.unlock_vault
 import boxy_authenticator.composeapp.generated.resources.unlock_vault_message
 import boxy_authenticator.composeapp.generated.resources.use_biometrics
+import boxy_authenticator.composeapp.generated.resources.use_keyboard
+import boxy_authenticator.composeapp.generated.resources.use_pin_pad
 import com.boxy.authenticator.core.BiometricsHelper
 import com.boxy.authenticator.ui.components.Toolbar
 import com.boxy.authenticator.ui.components.design.BoxyButton
@@ -69,39 +69,43 @@ import org.koin.compose.koinInject
 fun AuthenticationScreen(
     uiState: AuthenticationUiState,
     isPinPadVisible: Boolean,
+    isBiometricUnlockEnabled: Boolean,
     onPasswordChange: (String) -> Unit,
     onSubmit: () -> Unit,
     updatePinPadVisibility: () -> Unit,
     onAuthSuccess: () -> Unit,
-    navigateToSettings: (hideSensitiveSettings: Boolean) -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
     val biometricsHelper: BiometricsHelper = koinInject()
 
     val scope = rememberCoroutineScope()
 
-    val isBiometricUnlockEnabled = biometricsHelper.isBiometricAvailable()
+    val canUseBiometrics = isBiometricUnlockEnabled && biometricsHelper.isBiometricAvailable()
+    var isBiometricPromptRunning by remember { mutableStateOf(false) }
+    var usePinPad by remember(isPinPadVisible) { mutableStateOf(isPinPadVisible) }
 
     fun promptForBiometrics() {
+        if (!canUseBiometrics || isBiometricPromptRunning) return
         scope.launch {
-            val isSuccess = biometricsHelper.promptForBiometrics(
-                title = getString(Res.string.biometric_prompt_title),
-                reason = getString(Res.string.to_unlock),
-                failureButtonText = getString(Res.string.cancel),
-            )
-
-            if (isSuccess) onAuthSuccess()
+            isBiometricPromptRunning = true
+            try {
+                val isSuccess = biometricsHelper.promptForBiometrics(
+                    title = getString(Res.string.biometric_prompt_title),
+                    reason = getString(Res.string.to_unlock),
+                    failureButtonText = getString(Res.string.cancel),
+                )
+                if (isSuccess) onAuthSuccess()
+            } finally {
+                isBiometricPromptRunning = false
+            }
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (isBiometricUnlockEnabled) promptForBiometrics()
-    }
-
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner) {
+    LaunchedEffect(lifecycleOwner, canUseBiometrics) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             updatePinPadVisibility()
+            if (canUseBiometrics) promptForBiometrics()
         }
     }
 
@@ -109,14 +113,6 @@ fun AuthenticationScreen(
         topBar = {
             Toolbar(
                 title = "",
-                actions = {
-                    IconButton(onClick = { navigateToSettings(true) }) {
-                        Icon(
-                            Icons.Outlined.Settings,
-                            contentDescription = stringResource(Res.string.title_settings)
-                        )
-                    }
-                }
             )
         }
     ) { contentPadding ->
@@ -161,7 +157,7 @@ fun AuthenticationScreen(
                 Spacer(Modifier.height(30.dp))
 
                 LaunchedEffect(Unit) {
-                    if (!isBiometricUnlockEnabled) {
+                    if (!canUseBiometrics) {
                         focusRequester.requestFocus()
                     }
                 }
@@ -172,7 +168,7 @@ fun AuthenticationScreen(
                     isPasswordField = true,
                     errorMessage = uiState.passwordError,
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = if (isPinPadVisible) KeyboardType.Number
+                        keyboardType = if (usePinPad) KeyboardType.NumberPassword
                         else KeyboardType.Text,
                     ),
                     keyboardActions = KeyboardActions(
@@ -183,12 +179,23 @@ fun AuthenticationScreen(
 
                 Spacer(Modifier.height(20.dp))
 
+                if (isPinPadVisible) {
+                    BoxyTextButton(onClick = { usePinPad = !usePinPad }) {
+                        Text(
+                            stringResource(
+                                if (usePinPad) Res.string.use_keyboard else Res.string.use_pin_pad
+                            )
+                        )
+                    }
+                }
+
                 Row(
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    if (isBiometricUnlockEnabled) {
+                    if (canUseBiometrics) {
                         BoxyTextButton(
                             onClick = { promptForBiometrics() },
+                            enabled = !isBiometricPromptRunning,
                         ) {
                             Text(stringResource(Res.string.use_biometrics))
                         }
