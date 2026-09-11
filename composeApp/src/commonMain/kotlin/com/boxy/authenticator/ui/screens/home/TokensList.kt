@@ -67,6 +67,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import boxy_authenticator.composeapp.generated.resources.Res
 import boxy_authenticator.composeapp.generated.resources.refresh
+import boxy_authenticator.composeapp.generated.resources.showing_entries
 import com.boxy.authenticator.domain.models.TokenEntry
 import com.boxy.authenticator.domain.models.enums.LabelVisibility
 import com.boxy.authenticator.domain.models.enums.shouldShowLabels
@@ -214,7 +215,7 @@ fun TokensList(
 
         item {
             Text(
-                text = "Showing ${tokensList.size} entries",
+                text = stringResource(Res.string.showing_entries, tokensList.size),
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.75f),
                 modifier = Modifier

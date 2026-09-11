@@ -4,6 +4,7 @@
     <string name="all_labels">All</string>
     <string name="no_label_matches">No accounts match the selected labels.</string>
     <string name="no_active_accounts">No active accounts. Select Archived to view archived accounts.</string>
+    <string name="showing_entries">Showing %1$d entries</string>
     <string name="make_default_label">Make default label?</string>
     <string name="make_default_label_message">Apply “%1$s” automatically whenever the app opens?</string>
     <string name="remove_default_label">Remove default label?</string>
