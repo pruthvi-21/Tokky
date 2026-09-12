@@ -577,7 +577,7 @@ private final class NativeHomeViewModel: ObservableObject {
 
     func incrementHotp(_ token: NativeTokenSummary) {
         store.incrementHotp(tokenId: token.id, counter: token.hotpCounter) { [weak self] didUpdate in
-            guard didUpdate else { return }
+            guard didUpdate.boolValue else { return }
             Task { @MainActor in
                 self?.load()
             }

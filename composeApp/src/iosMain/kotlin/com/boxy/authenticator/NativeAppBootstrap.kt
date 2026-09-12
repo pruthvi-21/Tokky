@@ -2,12 +2,12 @@ package com.boxy.authenticator
 
 import com.boxy.authenticator.di.platformModule
 import com.boxy.authenticator.di.sharedModule
-import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
+import org.koin.mp.KoinPlatform
 
 object NativeAppBootstrap {
     fun start() {
-        if (GlobalContext.getOrNull() != null) return
+        if (KoinPlatform.getKoinOrNull() != null) return
 
         startKoin {
             modules(sharedModule, platformModule)
