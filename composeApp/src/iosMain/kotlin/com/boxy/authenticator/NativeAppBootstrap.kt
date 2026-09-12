@@ -18,8 +18,7 @@ object NativeAppBootstrap {
 data class NativeMigrationStatus(
     val sharedLogicReady: Boolean = true,
     val nativeShellReady: Boolean = true,
-    val composeFallbackReady: Boolean = true,
-    val phase: String = "Phase 1",
+    val phase: String = "Phase 4",
 )
 
 fun nativeMigrationStatus(): NativeMigrationStatus = NativeMigrationStatus()
