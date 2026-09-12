@@ -12,6 +12,8 @@ import com.boxy.authenticator.domain.models.otp.OtpInfo
 import com.boxy.authenticator.domain.models.otp.SteamInfo
 import com.boxy.authenticator.domain.models.otp.TotpInfo
 import com.boxy.authenticator.domain.usecases.InsertTokenUseCase
+import com.boxy.authenticator.domain.usecases.FetchTokenByIdUseCase
+import com.boxy.authenticator.domain.usecases.UpdateTokenUseCase
 import com.boxy.authenticator.utils.TokenNameExistsException
 import com.boxy.authenticator.utils.cleanSecretKey
 import kotlinx.coroutines.MainScope
@@ -22,6 +24,8 @@ import org.koin.core.component.inject
 
 class NativeTokenSetupStore : KoinComponent {
     private val insertTokenUseCase: InsertTokenUseCase by inject()
+    private val fetchTokenById: FetchTokenByIdUseCase by inject()
+    private val updateToken: UpdateTokenUseCase by inject()
     private val validator: TokenFormValidator by inject()
     private val scope = MainScope()
 
@@ -103,6 +107,35 @@ class NativeTokenSetupStore : KoinComponent {
 
     fun dispose() {
         scope.cancel()
+    }
+
+    fun updateDetails(
+        tokenId: String,
+        issuer: String,
+        label: String,
+        labelsText: String,
+        onComplete: (NativeSaveResult) -> Unit,
+    ) {
+        scope.launch {
+            if (validator.validateIssuer(issuer.trim()) is TokenFormValidator.Result.Failure) {
+                onComplete(NativeSaveResult(false, "Issuer is required."))
+                return@launch
+            }
+            val labels = runCatching {
+                TokenLabels.normalize(labelsText.split(",").map(String::trim).filter(String::isNotBlank))
+            }.getOrElse {
+                onComplete(NativeSaveResult(false, "Labels must be 1-${TokenLabels.MAX_LENGTH} characters without control characters."))
+                return@launch
+            }
+            val token = fetchTokenById(tokenId).getOrElse {
+                onComplete(NativeSaveResult(false, it.toNativeMessage()))
+                return@launch
+            }
+            updateToken(token.copy(issuer = issuer.trim(), label = label.trim(), labels = labels)).fold(
+                onSuccess = { onComplete(NativeSaveResult(true, null)) },
+                onFailure = { onComplete(NativeSaveResult(false, it.toNativeMessage())) },
+            )
+        }
     }
 
     private fun firstValidationError(

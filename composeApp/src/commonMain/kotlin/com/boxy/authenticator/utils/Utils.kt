@@ -44,7 +44,7 @@ fun String.getInitials(): String {
 }
 
 fun String.cleanSecretKey(): String {
-    return this.replace("\\s".toRegex(), "").uppercase()
+    return this.filterNot { it.isWhitespace() || it == '=' }.uppercase()
 }
 
 fun Modifier.moveRight(dp: Dp = 0.dp) = this.layout { measurable, constraints ->

@@ -12,7 +12,9 @@ actual object Base32 {
     }
 
     private fun decodeBase32(input: String): ByteArray {
-        val sanitizedInput = input.replace("=", "").uppercase()
+        val sanitizedInput = input
+            .filterNot { it.isWhitespace() || it == '=' }
+            .uppercase()
         val output = mutableListOf<Byte>()
         var buffer = 0
         var bitsLeft = 0
@@ -27,6 +29,7 @@ actual object Base32 {
             if (bitsLeft >= 8) {
                 output.add((buffer shr (bitsLeft - 8) and 0xFF).toByte())
                 bitsLeft -= 8
+                buffer = buffer and ((1 shl bitsLeft) - 1)
             }
         }
 
@@ -52,11 +55,6 @@ actual object Base32 {
         if (bitsLeft > 0) {
             val index = (buffer shl (5 - bitsLeft)) and 0x1F
             output.append(BASE32_ALPHABET[index])
-        }
-
-        // Add padding if necessary
-        while (output.length % 8 != 0) {
-            output.append('=')
         }
 
         return output.toString()

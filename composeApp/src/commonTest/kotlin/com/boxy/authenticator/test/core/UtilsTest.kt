@@ -16,8 +16,8 @@ class UtilsTest {
     }
 
     @Test
-    fun `secret cleaner removes all whitespace and uppercases`() {
-        assertEquals("JBSWY3DPEHPK3PXP", " jb swy3dp\nehpk3pxp\t".cleanSecretKey())
+    fun `secret cleaner removes whitespace and padding then uppercases`() {
+        assertEquals("JBSWY3DPEHPK3PXP", " jb swy3dp\nehpk3pxp\t====".cleanSecretKey())
     }
 
     @Test

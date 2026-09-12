@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -63,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import boxy_authenticator.composeapp.generated.resources.Res
@@ -394,19 +397,10 @@ fun HomeScreen(
                                 ),
                             )
                         } else {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stringResource(Res.string.empty_layout_text),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    modifier = Modifier
-                                        .padding(horizontal = 36.dp),
-                                    textAlign = TextAlign.Center,
-                                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.5f
-                                )
-                            }
+                            EmptyAccountsState(
+                                onScanQr = onNavigateToQrScan,
+                                onAddManually = onNavigateToNewTokenSetup,
+                            )
                         }
 
                         is DataLoadState.Error ->
@@ -597,6 +591,62 @@ fun HomeScreen(
             onDismissRequest = { onShowDeleteSelectionDialog(false) },
             onConfirmation = onDeleteSelection,
         )
+    }
+}
+
+@Composable
+private fun EmptyAccountsState(
+    onScanQr: () -> Unit,
+    onAddManually: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.QrCodeScanner,
+                contentDescription = null,
+                modifier = Modifier.padding(18.dp).size(34.dp),
+            )
+        }
+        Spacer(Modifier.height(18.dp))
+        Text(
+            text = stringResource(Res.string.empty_layout_text),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(18.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            BoxyButton(onClick = onScanQr) {
+                Icon(
+                    imageVector = Icons.Outlined.QrCodeScanner,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(Res.string.expandable_fab_qr_title))
+            }
+            BoxyButton(
+                onClick = onAddManually,
+                colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(Res.string.expandable_fab_manual_title))
+            }
+        }
     }
 }
 

@@ -4,7 +4,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
-private val radius = 4.dp
+private val radius = 8.dp
 val TokkyShapes = Shapes().copy(
     extraSmall = RoundedCornerShape(radius),
     small = RoundedCornerShape(radius),

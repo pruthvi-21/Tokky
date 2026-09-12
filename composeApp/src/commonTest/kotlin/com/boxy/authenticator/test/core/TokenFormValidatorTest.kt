@@ -31,8 +31,16 @@ class TokenFormValidatorTest {
     }
 
     @Test
+    fun `valid base32 secrets are accepted with whitespace and padding`() {
+        assertIs<TokenFormValidator.Result.Success>(
+            validator.validateSecretKey(" JBSW Y3DP\nEHPK3PXP==== "),
+        )
+    }
+
+    @Test
     fun `empty decoded secret and invalid alphabet are rejected separately`() {
         assertFailure(validator.validateSecretKey(""), Res.string.error_secret_key_empty)
+        assertFailure(validator.validateSecretKey("   "), Res.string.error_secret_key_empty)
         assertFailure(validator.validateSecretKey("NOT-BASE32"), Res.string.error_secret_key_invalid)
     }
 

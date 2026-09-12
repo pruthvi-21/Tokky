@@ -9,6 +9,7 @@ import boxy_authenticator.composeapp.generated.resources.error_secret_key_empty
 import boxy_authenticator.composeapp.generated.resources.error_secret_key_invalid
 import com.boxy.authenticator.core.encoding.Base32
 import com.boxy.authenticator.domain.models.otp.HotpInfo.Companion.COUNTER_MIN_VALUE
+import com.boxy.authenticator.utils.cleanSecretKey
 import org.jetbrains.compose.resources.StringResource
 
 class TokenFormValidator {
@@ -24,11 +25,14 @@ class TokenFormValidator {
     }
 
     fun validateSecretKey(secretKey: String): Result {
+        val normalizedSecret = secretKey.cleanSecretKey()
+        if (normalizedSecret.isEmpty()) return Result.Failure(Res.string.error_secret_key_empty)
+
         return try {
-            val decoded = Base32.decode(secretKey)
+            val decoded = Base32.decode(normalizedSecret)
             if (decoded.size > ImportedTokenValidator.MAX_SECRET_BYTES) Result.Failure(Res.string.error_secret_key_invalid)
             else if (decoded.isNotEmpty()) Result.Success
-            else Result.Failure(Res.string.error_secret_key_empty)
+            else Result.Failure(Res.string.error_secret_key_invalid)
         } catch (e: Exception) {
             Result.Failure(Res.string.error_secret_key_invalid)
         }

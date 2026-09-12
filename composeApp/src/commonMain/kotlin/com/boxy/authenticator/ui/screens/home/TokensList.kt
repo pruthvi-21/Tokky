@@ -11,8 +11,11 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -55,7 +58,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -247,13 +249,20 @@ fun TokenCard(
     }
     val containerColor by animateColorAsState(
         targetValue = if (isSelected) MaterialTheme.colorScheme.secondaryContainer
-        else MaterialTheme.colorScheme.surfaceVariant,
+        else MaterialTheme.colorScheme.surfaceContainer,
         animationSpec = tween(SLIDE_DURATION),
         label = "TokenSelectionColor",
     )
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (isSelected) MaterialTheme.colorScheme.secondary
+                    else MaterialTheme.colorScheme.outlineVariant,
+                ),
+            )
             .background(containerColor)
             .combinedClickable(
                 onClick = {
@@ -262,7 +271,7 @@ fun TokenCard(
                 },
                 onLongClick = onLongPress,
             )
-            .padding(horizontal = 24.dp, vertical = 15.dp)
+            .padding(horizontal = 18.dp, vertical = 15.dp)
 
     ) {
         Row(
@@ -298,7 +307,7 @@ fun TokenCard(
         ) {
             FlowRow(
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.padding(start = 59.dp, top = 6.dp),
             ) {
                 sortedLabels.forEach { label ->
@@ -541,6 +550,7 @@ private fun LabelsView(
             Text(
                 text = issuer,
                 style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -561,7 +571,7 @@ private fun LabelsView(
             Text(
                 text = label,
                 style = MaterialTheme.typography.titleSmall.copy(
-                    color = Color(0xFFA6A6A6),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.5.sp
                 ),
                 maxLines = 1,
